@@ -8,6 +8,7 @@ export default publicProcedure
       code: z.string(),
       name: z.string(),
       description: z.string(),
+      detailedDescription: z.string().optional(),
       category: z.string(),
       unit: z.string(),
       stock: z.number(),
@@ -30,6 +31,7 @@ export default publicProcedure
     const product = {
       id: `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...input,
+      detailedDescription: input.detailedDescription || "",
       createdAt: new Date(),
       updatedAt: new Date(),
     };

@@ -1,13 +1,18 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
-import { Plus, Search, Filter, Upload, Package, AlertCircle, X, Edit2, Trash2 } from "lucide-react-native";
-import React, { useState } from "react";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Plus, Search, Download, Upload, Package, AlertCircle, X, FileDown } from "lucide-react-native";
+import React, { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Colors from "@/constants/colors";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 
 interface ProductForm {
   code: string;
   name: string;
   description: string;
+  detailedDescription: string;
   category: string;
   unit: string;
   stock: string;
@@ -20,6 +25,7 @@ const emptyForm: ProductForm = {
   code: "",
   name: "",
   description: "",
+  detailedDescription: "",
   category: "",
   unit: "unidad",
   stock: "0",
@@ -28,8 +34,12 @@ const emptyForm: ProductForm = {
   price: "0",
 };
 
+const CATEGORIES = ["Todos", "Construcción", "Hierro", "Pintura"];
+
 export default function InventoryScreen() {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -38,12 +48,16 @@ export default function InventoryScreen() {
   const branchId = "branch_1";
 
   const productsQuery = trpc.inventory.getProducts.useQuery({ companyId, branchId });
+  const nextCodeQuery = trpc.inventory.getNextCode.useQuery({ companyId });
+  const exportQuery = trpc.inventory.exportProducts.useQuery({ companyId, branchId }, { enabled: false });
+  const templateQuery = trpc.inventory.getTemplate.useQuery(undefined, { enabled: false });
+
   const createMutation = trpc.inventory.createProduct.useMutation({
     onSuccess: () => {
       productsQuery.refetch();
       setShowModal(false);
       setForm(emptyForm);
-      Alert.alert("Éxito", "Producto creado correctamente");
+      Alert.alert("Éxito", "Material creado correctamente");
     },
     onError: (error) => {
       Alert.alert("Error", error.message);
@@ -56,7 +70,7 @@ export default function InventoryScreen() {
       setShowModal(false);
       setForm(emptyForm);
       setEditingId(null);
-      Alert.alert("Éxito", "Producto actualizado correctamente");
+      Alert.alert("Éxito", "Material actualizado correctamente");
     },
     onError: (error) => {
       Alert.alert("Error", error.message);
@@ -66,7 +80,18 @@ export default function InventoryScreen() {
   const deleteMutation = trpc.inventory.deleteProduct.useMutation({
     onSuccess: () => {
       productsQuery.refetch();
-      Alert.alert("Éxito", "Producto eliminado correctamente");
+      Alert.alert("Éxito", "Material eliminado correctamente");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  const importMutation = trpc.inventory.importProducts.useMutation({
+    onSuccess: (result) => {
+      productsQuery.refetch();
+      const message = `Importados: ${result.success}/${result.total}\n${result.errors.length > 0 ? `\nErrores:\n${result.errors.slice(0, 5).join("\n")}` : ""}`;
+      Alert.alert("Importación completada", message);
     },
     onError: (error) => {
       Alert.alert("Error", error.message);
@@ -74,11 +99,28 @@ export default function InventoryScreen() {
   });
 
   const products = productsQuery.data || [];
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCategory =
+        selectedCategory === "Todos" || p.category === selectedCategory;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, searchQuery, selectedCategory]);
+
+  const stats = useMemo(() => {
+    const totalProducts = products.length;
+    const lowStock = products.filter((p) => p.stock <= p.minStock).length;
+    const totalValue = products.reduce((sum, p) => sum + p.stock * p.price, 0);
+
+    return { totalProducts, lowStock, totalValue };
+  }, [products]);
 
   const isLowStock = (stock: number, minStock: number) => stock <= minStock;
 
@@ -91,6 +133,7 @@ export default function InventoryScreen() {
           code: product.code,
           name: product.name,
           description: product.description,
+          detailedDescription: product.detailedDescription,
           category: product.category,
           unit: product.unit,
           stock: product.stock.toString(),
@@ -101,7 +144,8 @@ export default function InventoryScreen() {
       }
     } else {
       setEditingId(null);
-      setForm(emptyForm);
+      const nextCode = nextCodeQuery.data || "MAT-001";
+      setForm({ ...emptyForm, code: nextCode });
     }
     setShowModal(true);
   };
@@ -116,6 +160,7 @@ export default function InventoryScreen() {
       code: form.code,
       name: form.name,
       description: form.description,
+      detailedDescription: form.detailedDescription,
       category: form.category,
       unit: form.unit,
       stock: parseFloat(form.stock) || 0,
@@ -134,7 +179,7 @@ export default function InventoryScreen() {
   const handleDelete = (id: string) => {
     Alert.alert(
       "Confirmar eliminación",
-      "¿Estás seguro de eliminar este producto?",
+      "¿Estás seguro de eliminar este material?",
       [
         { text: "Cancelar", style: "cancel" },
         { text: "Eliminar", style: "destructive", onPress: () => deleteMutation.mutate({ id }) },
@@ -142,8 +187,97 @@ export default function InventoryScreen() {
     );
   };
 
+  const handleExport = async () => {
+    try {
+      const result = await exportQuery.refetch();
+      if (!result.data) return;
+
+      const { csv, filename } = result.data;
+
+      if (Platform.OS === "web") {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        await Sharing.shareAsync(fileUri);
+      }
+
+      Alert.alert("Éxito", "Inventario exportado correctamente");
+    } catch {
+      Alert.alert("Error", "No se pudo exportar el inventario");
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const result = await templateQuery.refetch();
+      if (!result.data) return;
+
+      const { csv, filename } = result.data;
+
+      if (Platform.OS === "web") {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        await Sharing.shareAsync(fileUri);
+      }
+
+      Alert.alert("Éxito", "Plantilla descargada correctamente");
+    } catch {
+      Alert.alert("Error", "No se pudo descargar la plantilla");
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "text/csv",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const fileUri = result.assets[0].uri;
+      let csvData: string;
+
+      if (Platform.OS === "web") {
+        const response = await fetch(fileUri);
+        csvData = await response.text();
+      } else {
+        csvData = await FileSystem.readAsStringAsync(fileUri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+      }
+
+      importMutation.mutate({ csvData, companyId, branchId });
+    } catch {
+      Alert.alert("Error", "No se pudo importar el archivo");
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Search size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
@@ -155,19 +289,62 @@ export default function InventoryScreen() {
             placeholderTextColor={Colors.light.textSecondary}
           />
         </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.totalProducts}</Text>
+            <Text style={styles.statLabel}>Productos</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValue, styles.dangerText]}>{stats.lowStock}</Text>
+            <Text style={styles.statLabel}>Stock Bajo</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValue, styles.successText]}>€{stats.totalValue.toFixed(1)}</Text>
+            <Text style={styles.statLabel}>Valor Total</Text>
+          </View>
+        </View>
+
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.filterButton}>
-            <Filter size={20} color={Colors.light.text} />
+          <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+            <Download size={18} color="#10B981" />
+            <Text style={styles.exportButtonText}>Exportar</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.uploadButton}>
-            <Upload size={20} color={Colors.light.primary} />
-            <Text style={styles.uploadButtonText}>Importar CSV</Text>
+          <TouchableOpacity style={styles.importButton} onPress={handleImport}>
+            <Upload size={18} color={Colors.light.primary} />
+            <Text style={styles.importButtonText}>Importar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.templateButton} onPress={handleDownloadTemplate}>
+            <FileDown size={18} color="#8B5CF6" />
+            <Text style={styles.templateButtonText}>Plantilla</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.addButton} onPress={() => handleOpenModal()}>
             <Plus size={20} color={Colors.light.cardBackground} />
           </TouchableOpacity>
         </View>
       </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
+        {CATEGORIES.map((cat) => (
+          <TouchableOpacity
+            key={cat}
+            style={[
+              styles.categoryChip,
+              selectedCategory === cat && styles.categoryChipActive,
+            ]}
+            onPress={() => setSelectedCategory(cat)}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                selectedCategory === cat && styles.categoryChipTextActive,
+              ]}
+            >
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {productsQuery.isLoading ? (
@@ -176,23 +353,19 @@ export default function InventoryScreen() {
           <Text style={styles.emptyText}>No hay productos registrados</Text>
         ) : (
           filteredProducts.map((product) => (
-            <View key={product.id} style={styles.productCard}>
+            <TouchableOpacity
+              key={product.id}
+              style={styles.productCard}
+              onPress={() => handleOpenModal(product.id)}
+            >
               <View style={styles.productHeader}>
                 <View style={styles.productIcon}>
                   <Package size={24} color={Colors.light.primary} />
                 </View>
                 <View style={styles.productInfo}>
                   <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productSku}>Código: {product.code}</Text>
                   <Text style={styles.productCategory}>{product.category}</Text>
-                </View>
-                <View style={styles.productActions}>
-                  <TouchableOpacity onPress={() => handleOpenModal(product.id)} style={styles.actionButton}>
-                    <Edit2 size={18} color={Colors.light.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(product.id)} style={styles.actionButton}>
-                    <Trash2 size={18} color={Colors.light.danger} />
-                  </TouchableOpacity>
+                  <Text style={styles.productDescription}>{product.description}</Text>
                 </View>
               </View>
               <View style={styles.productFooter}>
@@ -200,23 +373,27 @@ export default function InventoryScreen() {
                   {isLowStock(product.stock, product.minStock) && (
                     <AlertCircle size={16} color={Colors.light.danger} />
                   )}
-                  <Text style={[
-                    styles.stockText,
-                    isLowStock(product.stock, product.minStock) && styles.lowStockText
-                  ]}>
-                    Stock: {product.stock} {product.unit}
+                  <Text
+                    style={[
+                      styles.stockText,
+                      isLowStock(product.stock, product.minStock) && styles.lowStockText,
+                    ]}
+                  >
+                    {product.stock} {product.unit}
                   </Text>
+                  {isLowStock(product.stock, product.minStock) && (
+                    <Text style={styles.minStockText}>Mín: {product.minStock}</Text>
+                  )}
                 </View>
-                <Text style={styles.priceText}>${product.price.toFixed(2)}</Text>
+                <View style={styles.priceContainer}>
+                  <Text style={styles.costLabel}>Costo:</Text>
+                  <Text style={styles.costText}>€{product.cost.toFixed(2)}</Text>
+                  <Text style={styles.priceLabel}>Precio:</Text>
+                  <Text style={styles.priceText}>€{product.price.toFixed(2)}</Text>
+                  <Text style={styles.marginText}>+{((product.price - product.cost) / product.cost * 100).toFixed(0)}%</Text>
+                </View>
               </View>
-              {isLowStock(product.stock, product.minStock) && (
-                <View style={styles.lowStockBanner}>
-                  <Text style={styles.lowStockBannerText}>
-                    Stock bajo - Mínimo: {product.minStock}
-                  </Text>
-                </View>
-              )}
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
@@ -226,7 +403,7 @@ export default function InventoryScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingId ? "Editar Producto" : "Nuevo Producto"}
+                {editingId ? "Editar Material" : "Nuevo Material"}
               </Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
                 <X size={24} color={Colors.light.text} />
@@ -234,30 +411,59 @@ export default function InventoryScreen() {
             </View>
 
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.label}>Código *</Text>
+              <Text style={styles.sectionTitle}>Información del Material</Text>
+
+              <Text style={styles.label}>Código de Material *</Text>
               <TextInput
                 style={styles.input}
                 value={form.code}
                 onChangeText={(text) => setForm({ ...form, code: text })}
-                placeholder="Ej: TOR-001"
+                placeholder="Ej: MAT-001"
+                editable={!editingId}
               />
 
-              <Text style={styles.label}>Nombre *</Text>
+              <Text style={styles.label}>Descripción/Nombre *</Text>
               <TextInput
                 style={styles.input}
                 value={form.name}
                 onChangeText={(text) => setForm({ ...form, name: text })}
-                placeholder="Ej: Tornillo 1/4 x 2"
+                placeholder="Nombre del material"
               />
 
-              <Text style={styles.label}>Descripción</Text>
+              <Text style={styles.label}>Descripción Detallada</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                value={form.description}
-                onChangeText={(text) => setForm({ ...form, description: text })}
-                placeholder="Descripción del producto"
+                value={form.detailedDescription}
+                onChangeText={(text) => setForm({ ...form, detailedDescription: text })}
+                placeholder="Descripción detallada del material"
                 multiline
                 numberOfLines={3}
+              />
+
+              <Text style={styles.label}>Unidad de Medida</Text>
+              <TextInput
+                style={styles.input}
+                value={form.unit}
+                onChangeText={(text) => setForm({ ...form, unit: text })}
+                placeholder="Ej: unidad, saco, kg"
+              />
+
+              <Text style={styles.label}>Costo Promedio</Text>
+              <TextInput
+                style={styles.input}
+                value={form.cost}
+                onChangeText={(text) => setForm({ ...form, cost: text })}
+                keyboardType="numeric"
+                placeholder="0.00"
+              />
+
+              <Text style={styles.label}>Precio Sugerido</Text>
+              <TextInput
+                style={styles.input}
+                value={form.price}
+                onChangeText={(text) => setForm({ ...form, price: text })}
+                keyboardType="numeric"
+                placeholder="0.00"
               />
 
               <Text style={styles.label}>Categoría *</Text>
@@ -265,15 +471,15 @@ export default function InventoryScreen() {
                 style={styles.input}
                 value={form.category}
                 onChangeText={(text) => setForm({ ...form, category: text })}
-                placeholder="Ej: Tornillería"
+                placeholder="Ej: Construcción"
               />
 
-              <Text style={styles.label}>Unidad</Text>
+              <Text style={styles.label}>Descripción (Breve)</Text>
               <TextInput
                 style={styles.input}
-                value={form.unit}
-                onChangeText={(text) => setForm({ ...form, unit: text })}
-                placeholder="Ej: unidad, kg, m"
+                value={form.description}
+                onChangeText={(text) => setForm({ ...form, description: text })}
+                placeholder="Descripción breve"
               />
 
               <View style={styles.row}>
@@ -298,29 +504,6 @@ export default function InventoryScreen() {
                   />
                 </View>
               </View>
-
-              <View style={styles.row}>
-                <View style={styles.halfInput}>
-                  <Text style={styles.label}>Costo</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.cost}
-                    onChangeText={(text) => setForm({ ...form, cost: text })}
-                    keyboardType="numeric"
-                    placeholder="0.00"
-                  />
-                </View>
-                <View style={styles.halfInput}>
-                  <Text style={styles.label}>Precio</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.price}
-                    onChangeText={(text) => setForm({ ...form, price: text })}
-                    keyboardType="numeric"
-                    placeholder="0.00"
-                  />
-                </View>
-              </View>
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -336,7 +519,7 @@ export default function InventoryScreen() {
                 disabled={createMutation.isPending || updateMutation.isPending}
               >
                 <Text style={styles.saveButtonText}>
-                  {createMutation.isPending || updateMutation.isPending ? "Guardando..." : "Guardar"}
+                  {createMutation.isPending || updateMutation.isPending ? "Guardando..." : "Guardar Material"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -364,7 +547,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     borderRadius: 8,
     paddingHorizontal: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   searchIcon: {
     marginRight: 8,
@@ -375,34 +558,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.text,
   },
-  headerActions: {
+  statsContainer: {
     flexDirection: "row" as const,
     gap: 12,
+    marginBottom: 16,
   },
-  filterButton: {
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center" as const,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  dangerText: {
+    color: Colors.light.danger,
+  },
+  successText: {
+    color: Colors.light.success,
+  },
+  headerActions: {
+    flexDirection: "row" as const,
+    gap: 8,
+  },
+  exportButton: {
     flex: 1,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#10B98120",
     borderRadius: 8,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    gap: 6,
   },
-  uploadButton: {
-    flex: 2,
+  exportButtonText: {
+    color: "#10B981",
+    fontSize: 13,
+    fontWeight: "600" as const,
+  },
+  importButton: {
+    flex: 1,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     backgroundColor: Colors.light.primary + "20",
     borderRadius: 8,
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: 12,
+    gap: 6,
   },
-  uploadButtonText: {
+  importButtonText: {
     color: Colors.light.primary,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "600" as const,
+  },
+  templateButton: {
+    flex: 1,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    backgroundColor: "#8B5CF620",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  templateButtonText: {
+    color: "#8B5CF6",
+    fontSize: 13,
     fontWeight: "600" as const,
   },
   addButton: {
@@ -413,6 +646,31 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 16,
+  },
+  categoriesContainer: {
+    backgroundColor: Colors.light.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.light.background,
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: Colors.light.primary,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+  },
+  categoryChipTextActive: {
+    color: Colors.light.cardBackground,
   },
   content: {
     flex: 1,
@@ -463,32 +721,25 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 4,
   },
-  productSku: {
-    fontSize: 12,
-    color: Colors.light.textSecondary,
-    marginBottom: 2,
-  },
   productCategory: {
     fontSize: 12,
     color: Colors.light.primary,
     fontWeight: "600" as const,
+    marginBottom: 2,
   },
-  productActions: {
-    flexDirection: "row" as const,
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
+  productDescription: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
   },
   productFooter: {
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
-    alignItems: "center" as const,
+    alignItems: "flex-start" as const,
   },
   stockContainer: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 4,
+    gap: 6,
   },
   stockText: {
     fontSize: 14,
@@ -498,21 +749,35 @@ const styles = StyleSheet.create({
   lowStockText: {
     color: Colors.light.danger,
   },
+  minStockText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  priceContainer: {
+    alignItems: "flex-end" as const,
+  },
+  costLabel: {
+    fontSize: 10,
+    color: Colors.light.textSecondary,
+  },
+  costText: {
+    fontSize: 12,
+    color: Colors.light.text,
+    fontWeight: "600" as const,
+  },
+  priceLabel: {
+    fontSize: 10,
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+  },
   priceText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700" as const,
     color: Colors.light.success,
   },
-  lowStockBanner: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: Colors.light.danger + "20",
-    borderRadius: 8,
-  },
-  lowStockBannerText: {
-    fontSize: 12,
-    color: Colors.light.danger,
+  marginText: {
+    fontSize: 11,
+    color: Colors.light.success,
     fontWeight: "600" as const,
   },
   modalOverlay: {
@@ -541,6 +806,12 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
