@@ -1,53 +1,192 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from "react-native";
-import { Plus, Search, Filter, Calendar, DollarSign, Download } from "lucide-react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
+import { Plus, Search, Filter, Calendar, DollarSign, Download, X, Trash2, ShoppingCart } from "lucide-react-native";
 import React, { useState } from "react";
-
+import { trpc } from "@/lib/trpc";
 import Colors from "@/constants/colors";
 
-interface Quote {
-  id: string;
-  quoteNumber: string;
-  customerName: string;
-  date: string;
-  total: number;
-  status: "pending" | "approved" | "rejected" | "expired";
-  validUntil: string;
+interface QuoteItem {
+  productId: string;
+  productCode: string;
+  productName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  discount: number;
+  subtotal: number;
+  availableStock: number;
 }
 
-const mockQuotes: Quote[] = [
-  {
-    id: "1",
-    quoteNumber: "COT-001",
-    customerName: "Juan Pérez",
-    date: "2025-10-08",
-    total: 1250.50,
-    status: "pending",
-    validUntil: "2025-10-15",
-  },
-  {
-    id: "2",
-    quoteNumber: "COT-002",
-    customerName: "María García",
-    date: "2025-10-07",
-    total: 890.00,
-    status: "approved",
-    validUntil: "2025-10-14",
-  },
-  {
-    id: "3",
-    quoteNumber: "COT-003",
-    customerName: "Carlos López",
-    date: "2025-10-06",
-    total: 2340.75,
-    status: "pending",
-    validUntil: "2025-10-13",
-  },
-];
+interface QuoteForm {
+  customerName: string;
+  customerDocument: string;
+  customerPhone: string;
+  customerEmail: string;
+  validUntil: string;
+  notes: string;
+}
+
+const emptyForm: QuoteForm = {
+  customerName: "",
+  customerDocument: "",
+  customerPhone: "",
+  customerEmail: "",
+  validUntil: "",
+  notes: "",
+};
 
 export default function QuotesScreen() {
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [showProductSelector, setShowProductSelector] = useState<boolean>(false);
+  const [form, setForm] = useState<QuoteForm>(emptyForm);
+  const [items, setItems] = useState<QuoteItem[]>([]);
+  const [productSearch, setProductSearch] = useState<string>("");
 
-  const getStatusColor = (status: Quote["status"]) => {
+  const companyId = "company_1";
+  const branchId = "branch_1";
+  const createdBy = "user_1";
+
+  const quotesQuery = trpc.quotes.getQuotes.useQuery({ companyId, branchId });
+  const productsQuery = trpc.inventory.getProducts.useQuery({ companyId, branchId });
+  
+  const createMutation = trpc.quotes.createQuote.useMutation({
+    onSuccess: () => {
+      quotesQuery.refetch();
+      setShowModal(false);
+      setForm(emptyForm);
+      setItems([]);
+      Alert.alert("Éxito", "Cotización creada correctamente");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  const updateStatusMutation = trpc.quotes.updateQuoteStatus.useMutation({
+    onSuccess: () => {
+      quotesQuery.refetch();
+      Alert.alert("Éxito", "Estado actualizado correctamente");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  const quotes = quotesQuery.data || [];
+  const products = productsQuery.data || [];
+  
+  const filteredQuotes = quotes.filter((q) =>
+    q.quoteNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    q.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.code.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  const addProduct = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    const existingItem = items.find((i) => i.productId === productId);
+    if (existingItem) {
+      Alert.alert("Aviso", "Este producto ya está en la lista");
+      return;
+    }
+
+    const newItem: QuoteItem = {
+      productId: product.id,
+      productCode: product.code,
+      productName: product.name,
+      quantity: 1,
+      unit: product.unit,
+      unitPrice: product.price,
+      discount: 0,
+      subtotal: product.price,
+      availableStock: product.stock,
+    };
+
+    setItems([...items, newItem]);
+    setShowProductSelector(false);
+    setProductSearch("");
+  };
+
+  const updateItem = (index: number, field: keyof QuoteItem, value: number) => {
+    const newItems = [...items];
+    const item = newItems[index];
+
+    if (field === "quantity") {
+      item.quantity = value;
+    } else if (field === "unitPrice") {
+      item.unitPrice = value;
+    } else if (field === "discount") {
+      if (value > 100) value = 100;
+      if (value < 0) value = 0;
+      item.discount = value;
+    }
+
+    const priceAfterDiscount = item.unitPrice * (1 - item.discount / 100);
+    item.subtotal = priceAfterDiscount * item.quantity;
+
+    setItems(newItems);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const calculateTotals = () => {
+    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const tax = subtotal * 0.18;
+    const total = subtotal + tax;
+    return { subtotal, tax, total, discount: 0 };
+  };
+
+  const handleSave = () => {
+    if (!form.customerName) {
+      Alert.alert("Error", "Por favor ingresa el nombre del cliente");
+      return;
+    }
+
+    if (!form.validUntil) {
+      Alert.alert("Error", "Por favor ingresa la fecha de validez");
+      return;
+    }
+
+    if (items.length === 0) {
+      Alert.alert("Error", "Por favor agrega al menos un producto");
+      return;
+    }
+
+    const totals = calculateTotals();
+
+    createMutation.mutate({
+      ...form,
+      validUntil: new Date(form.validUntil),
+      items: items.map((item) => ({
+        productId: item.productId,
+        productCode: item.productCode,
+        productName: item.productName,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        subtotal: item.subtotal,
+      })),
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      tax: totals.tax,
+      total: totals.total,
+      companyId,
+      branchId,
+      createdBy,
+    });
+  };
+
+  const totals = calculateTotals();
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
         return Colors.light.success;
@@ -62,7 +201,7 @@ export default function QuotesScreen() {
     }
   };
 
-  const getStatusText = (status: Quote["status"]) => {
+  const getStatusText = (status: string) => {
     switch (status) {
       case "approved":
         return "Aprobada";
@@ -94,7 +233,7 @@ export default function QuotesScreen() {
           <TouchableOpacity style={styles.filterButton}>
             <Filter size={20} color={Colors.light.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity style={styles.addButton} onPress={() => setShowModal(true)}>
             <Plus size={20} color={Colors.light.cardBackground} />
             <Text style={styles.addButtonText}>Nueva Cotización</Text>
           </TouchableOpacity>
@@ -102,38 +241,248 @@ export default function QuotesScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {mockQuotes.map((quote) => (
-          <TouchableOpacity key={quote.id} style={styles.quoteCard}>
-            <View style={styles.quoteHeader}>
-              <View>
-                <Text style={styles.quoteNumber}>{quote.quoteNumber}</Text>
-                <Text style={styles.customerName}>{quote.customerName}</Text>
+        {quotesQuery.isLoading ? (
+          <Text style={styles.loadingText}>Cargando cotizaciones...</Text>
+        ) : filteredQuotes.length === 0 ? (
+          <Text style={styles.emptyText}>No hay cotizaciones registradas</Text>
+        ) : (
+          filteredQuotes.map((quote) => (
+            <View key={quote.id} style={styles.quoteCard}>
+              <View style={styles.quoteHeader}>
+                <View>
+                  <Text style={styles.quoteNumber}>{quote.quoteNumber}</Text>
+                  <Text style={styles.customerName}>{quote.customerName}</Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(quote.status) + "20" }]}>
+                  <Text style={[styles.statusText, { color: getStatusColor(quote.status) }]}>
+                    {getStatusText(quote.status)}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(quote.status) + "20" }]}>
-                <Text style={[styles.statusText, { color: getStatusColor(quote.status) }]}>
-                  {getStatusText(quote.status)}
-                </Text>
+              <View style={styles.quoteBody}>
+                <View style={styles.quoteInfo}>
+                  <Calendar size={14} color={Colors.light.textSecondary} />
+                  <Text style={styles.quoteInfoText}>
+                    Válida hasta: {new Date(quote.validUntil).toLocaleDateString()}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.quoteFooter}>
+                <View style={styles.quoteInfo}>
+                  <DollarSign size={14} color={Colors.light.success} />
+                  <Text style={styles.totalText}>${quote.total.toFixed(2)}</Text>
+                </View>
+                <TouchableOpacity style={styles.downloadButton}>
+                  <Download size={16} color={Colors.light.primary} />
+                  <Text style={styles.downloadText}>Descargar PDF</Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.quoteBody}>
-              <View style={styles.quoteInfo}>
-                <Calendar size={14} color={Colors.light.textSecondary} />
-                <Text style={styles.quoteInfoText}>Válida hasta: {quote.validUntil}</Text>
-              </View>
-            </View>
-            <View style={styles.quoteFooter}>
-              <View style={styles.quoteInfo}>
-                <DollarSign size={14} color={Colors.light.success} />
-                <Text style={styles.totalText}>${quote.total.toFixed(2)}</Text>
-              </View>
-              <TouchableOpacity style={styles.downloadButton}>
-                <Download size={16} color={Colors.light.primary} />
-                <Text style={styles.downloadText}>Descargar PDF</Text>
+          ))
+        )}
+      </ScrollView>
+
+      <Modal visible={showModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nueva Cotización</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <X size={24} color={Colors.light.text} />
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.sectionTitle}>Información del Cliente</Text>
+              
+              <Text style={styles.label}>Nombre *</Text>
+              <TextInput
+                style={styles.input}
+                value={form.customerName}
+                onChangeText={(text) => setForm({ ...form, customerName: text })}
+                placeholder="Nombre del cliente"
+              />
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Documento</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={form.customerDocument}
+                    onChangeText={(text) => setForm({ ...form, customerDocument: text })}
+                    placeholder="DNI/RUC"
+                  />
+                </View>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Teléfono</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={form.customerPhone}
+                    onChangeText={(text) => setForm({ ...form, customerPhone: text })}
+                    placeholder="Teléfono"
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={form.customerEmail}
+                onChangeText={(text) => setForm({ ...form, customerEmail: text })}
+                placeholder="correo@ejemplo.com"
+                keyboardType="email-address"
+              />
+
+              <Text style={styles.label}>Válida hasta *</Text>
+              <TextInput
+                style={styles.input}
+                value={form.validUntil}
+                onChangeText={(text) => setForm({ ...form, validUntil: text })}
+                placeholder="YYYY-MM-DD"
+              />
+
+              <Text style={styles.sectionTitle}>Productos</Text>
+              
+              <TouchableOpacity
+                style={styles.addProductButton}
+                onPress={() => setShowProductSelector(true)}
+              >
+                <ShoppingCart size={20} color={Colors.light.primary} />
+                <Text style={styles.addProductButtonText}>Agregar Producto</Text>
+              </TouchableOpacity>
+
+              {items.map((item, index) => (
+                <View key={index} style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemName}>{item.productName}</Text>
+                    <TouchableOpacity onPress={() => removeItem(index)}>
+                      <Trash2 size={18} color={Colors.light.danger} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.itemCode}>Código: {item.productCode}</Text>
+                  <Text style={styles.itemStock}>Stock disponible: {item.availableStock}</Text>
+                  
+                  <View style={styles.itemRow}>
+                    <View style={styles.itemField}>
+                      <Text style={styles.itemLabel}>Cantidad</Text>
+                      <TextInput
+                        style={styles.itemInput}
+                        value={item.quantity.toString()}
+                        onChangeText={(text) => updateItem(index, "quantity", parseFloat(text) || 0)}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={styles.itemField}>
+                      <Text style={styles.itemLabel}>Precio Unit.</Text>
+                      <TextInput
+                        style={styles.itemInput}
+                        value={item.unitPrice.toString()}
+                        onChangeText={(text) => updateItem(index, "unitPrice", parseFloat(text) || 0)}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={styles.itemField}>
+                      <Text style={styles.itemLabel}>Desc. %</Text>
+                      <TextInput
+                        style={styles.itemInput}
+                        value={item.discount.toString()}
+                        onChangeText={(text) => updateItem(index, "discount", parseFloat(text) || 0)}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+                  <Text style={styles.itemSubtotal}>Subtotal: ${item.subtotal.toFixed(2)}</Text>
+                </View>
+              ))}
+
+              <View style={styles.totalsCard}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Subtotal:</Text>
+                  <Text style={styles.totalValue}>${totals.subtotal.toFixed(2)}</Text>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>IGV (18%):</Text>
+                  <Text style={styles.totalValue}>${totals.tax.toFixed(2)}</Text>
+                </View>
+                <View style={[styles.totalRow, styles.totalRowFinal]}>
+                  <Text style={styles.totalLabelFinal}>Total:</Text>
+                  <Text style={styles.totalValueFinal}>${totals.total.toFixed(2)}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.label}>Notas</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={form.notes}
+                onChangeText={(text) => setForm({ ...form, notes: text })}
+                placeholder="Notas adicionales"
+                multiline
+                numberOfLines={3}
+              />
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSave}
+                disabled={createMutation.isPending}
+              >
+                <Text style={styles.saveButtonText}>
+                  {createMutation.isPending ? "Guardando..." : "Crear Cotización"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showProductSelector} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.productSelectorModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Seleccionar Producto</Text>
+              <TouchableOpacity onPress={() => setShowProductSelector(false)}>
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.searchContainer}>
+              <Search size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar productos..."
+                value={productSearch}
+                onChangeText={setProductSearch}
+                placeholderTextColor={Colors.light.textSecondary}
+              />
+            </View>
+
+            <ScrollView style={styles.productList}>
+              {filteredProducts.map((product) => (
+                <TouchableOpacity
+                  key={product.id}
+                  style={styles.productItem}
+                  onPress={() => addProduct(product.id)}
+                >
+                  <View>
+                    <Text style={styles.productItemName}>{product.name}</Text>
+                    <Text style={styles.productItemCode}>Código: {product.code}</Text>
+                    <Text style={styles.productItemStock}>Stock: {product.stock} {product.unit}</Text>
+                  </View>
+                  <Text style={styles.productItemPrice}>${product.price.toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -201,6 +550,16 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+  },
+  loadingText: {
+    textAlign: "center" as const,
+    color: Colors.light.textSecondary,
+    marginTop: 20,
+  },
+  emptyText: {
+    textAlign: "center" as const,
+    color: Colors.light.textSecondary,
+    marginTop: 20,
   },
   quoteCard: {
     backgroundColor: Colors.light.cardBackground,
@@ -273,5 +632,244 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.primary,
     fontWeight: "600" as const,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end" as const,
+  },
+  modalContent: {
+    backgroundColor: Colors.light.cardBackground,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "95%",
+  },
+  modalHeader: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  input: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: "top" as const,
+  },
+  row: {
+    flexDirection: "row" as const,
+    gap: 12,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  addProductButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    backgroundColor: Colors.light.primary + "20",
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    marginBottom: 16,
+  },
+  addProductButtonText: {
+    color: Colors.light.primary,
+    fontSize: 14,
+    fontWeight: "600" as const,
+  },
+  itemCard: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  itemHeader: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    marginBottom: 4,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  itemCode: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginBottom: 2,
+  },
+  itemStock: {
+    fontSize: 12,
+    color: Colors.light.primary,
+    marginBottom: 8,
+  },
+  itemRow: {
+    flexDirection: "row" as const,
+    gap: 8,
+    marginBottom: 8,
+  },
+  itemField: {
+    flex: 1,
+  },
+  itemLabel: {
+    fontSize: 11,
+    color: Colors.light.textSecondary,
+    marginBottom: 4,
+  },
+  itemInput: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 13,
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  itemSubtotal: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
+    textAlign: "right" as const,
+  },
+  totalsCard: {
+    backgroundColor: Colors.light.primary + "10",
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  totalRow: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    marginBottom: 8,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  totalValue: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+  },
+  totalRowFinal: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  totalLabelFinal: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  totalValueFinal: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
+  },
+  modalFooter: {
+    flexDirection: "row" as const,
+    padding: 20,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.light.background,
+    alignItems: "center" as const,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+  },
+  saveButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.light.primary,
+    alignItems: "center" as const,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: Colors.light.cardBackground,
+  },
+  productSelectorModal: {
+    backgroundColor: Colors.light.cardBackground,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "80%",
+  },
+  productList: {
+    padding: 16,
+  },
+  productItem: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  productItemName: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  productItemCode: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginBottom: 2,
+  },
+  productItemStock: {
+    fontSize: 12,
+    color: Colors.light.primary,
+  },
+  productItemPrice: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
   },
 });
