@@ -1,6 +1,5 @@
-// template
 import { Tabs } from "expo-router";
-import { Code } from "lucide-react-native";
+import { Home, ShoppingCart, FileText, Package, Settings } from "lucide-react-native";
 import React from "react";
 
 import Colors from "@/constants/colors";
@@ -9,15 +8,53 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.light.tint,
-        headerShown: true,
+        tabBarActiveTintColor: Colors.light.primary,
+        tabBarInactiveTintColor: Colors.light.tabIconDefault,
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: Colors.light.cardBackground,
+          borderTopColor: Colors.light.border,
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600" as const,
+        },
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="(home)"
         options={{
-          title: "Tab One",
-          tabBarIcon: ({ color }) => <Code color={color} />,
+          title: "Inicio",
+          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="sales"
+        options={{
+          title: "Ventas",
+          tabBarIcon: ({ color }) => <ShoppingCart size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="quotes"
+        options={{
+          title: "Cotizaciones",
+          tabBarIcon: ({ color }) => <FileText size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: "Inventario",
+          tabBarIcon: ({ color }) => <Package size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Ajustes",
+          tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
         }}
       />
     </Tabs>
