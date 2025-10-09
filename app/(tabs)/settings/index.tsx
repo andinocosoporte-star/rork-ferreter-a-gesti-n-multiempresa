@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { Building2, MapPin, Users, UserCog, LogOut, ChevronRight, UserCircle } from "lucide-react-native";
 import React from "react";
 import { useRouter } from "expo-router";
@@ -15,6 +15,26 @@ interface SettingItem {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas cerrar sesión?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Cerrar Sesión",
+          style: "destructive",
+          onPress: () => {
+            console.log("Sesión cerrada");
+          },
+        },
+      ]
+    );
+  };
   
   const companySettings: SettingItem[] = [
     {
@@ -89,7 +109,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut size={20} color={Colors.light.danger} />
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </TouchableOpacity>
