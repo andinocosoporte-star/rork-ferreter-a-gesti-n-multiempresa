@@ -7,6 +7,7 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActivityIndicator, View } from "react-native";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import AppIcon from "@/components/AppIcon";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -76,6 +77,10 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <GestureHandlerRootView>
+              {/* Small top header with app icon */}
+              <View style={{ padding: 12, alignItems: "center", backgroundColor: "#fff" }}>
+                <AppIcon size={56} />
+              </View>
               <RootLayoutNav />
             </GestureHandlerRootView>
           </AuthProvider>
