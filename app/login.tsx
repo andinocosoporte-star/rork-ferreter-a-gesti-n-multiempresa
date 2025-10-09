@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { Link } from "expo-router";
-import { LogIn, Mail, Lock } from "lucide-react-native";
+import { LogIn, Mail, Lock, AlertCircle } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +23,40 @@ export default function LoginScreen() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [backendUrl, setBackendUrl] = useState<string>("");
+  const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking");
+
+  useEffect(() => {
+    const url = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || "No configurado";
+    setBackendUrl(url);
+    checkBackendStatus(url);
+  }, []);
+
+  const checkBackendStatus = async (url: string) => {
+    if (url === "No configurado") {
+      setBackendStatus("offline");
+      return;
+    }
+
+    try {
+      console.log("[Login] Checking backend status at:", url);
+      const response = await fetch(`${url}/api`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      console.log("[Login] Backend status response:", response.status);
+      if (response.ok) {
+        setBackendStatus("online");
+      } else {
+        setBackendStatus("offline");
+      }
+    } catch (error) {
+      console.error("[Login] Backend status check failed:", error);
+      setBackendStatus("offline");
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -55,6 +89,20 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.title}>Bienvenido</Text>
           <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
+          
+          {backendStatus === "offline" && (
+            <View style={styles.statusBanner}>
+              <AlertCircle size={16} color="#fff" />
+              <Text style={styles.statusText}>Servidor no disponible</Text>
+            </View>
+          )}
+          
+          {backendStatus === "checking" && (
+            <View style={[styles.statusBanner, styles.statusBannerWarning]}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.statusText}>Verificando conexión...</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.form}>
@@ -256,5 +304,23 @@ const styles = StyleSheet.create({
   footerVersion: {
     fontSize: 12,
     color: Colors.light.textSecondary,
+  },
+  statusBanner: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: "#ef4444",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  statusBannerWarning: {
+    backgroundColor: "#f59e0b",
+  },
+  statusText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600" as const,
   },
 });

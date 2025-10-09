@@ -85,14 +85,32 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      console.log("[AuthContext] Attempting login for:", email);
       const result = await loginMutation.mutateAsync({ email, password });
+      console.log("[AuthContext] Login successful, saving token");
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, result.token);
       setToken(result.token);
       setUser(result.user);
       return { success: true };
     } catch (error) {
-      console.error("Login error:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Error al iniciar sesión" };
+      console.error("[AuthContext] Login error:", error);
+      if (error instanceof Error) {
+        console.error("[AuthContext] Error message:", error.message);
+        console.error("[AuthContext] Error stack:", error.stack);
+      }
+      
+      let errorMessage = "Error al iniciar sesión";
+      if (error instanceof Error) {
+        if (error.message.includes("Network request failed")) {
+          errorMessage = "No se puede conectar al servidor. Verifica tu conexión a internet.";
+        } else if (error.message.includes("Credenciales inválidas")) {
+          errorMessage = "Correo o contraseña incorrectos";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      return { success: false, error: errorMessage };
     }
   }, [loginMutation]);
 
