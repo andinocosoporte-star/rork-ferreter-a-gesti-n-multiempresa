@@ -11,9 +11,15 @@ app.use("*", cors());
 app.use(
   "/trpc/*",
   trpcServer({
-    endpoint: "/api/trpc",
     router: appRouter,
     createContext,
+    responseMeta() {
+      return {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      };
+    },
   })
 );
 
