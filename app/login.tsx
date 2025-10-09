@@ -49,7 +49,10 @@ export default function LoginScreen() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`${url}/api`, {
+      const testUrl = `${url}/api/trpc/example.hi`;
+      console.log("[Login] Testing URL:", testUrl);
+      
+      const response = await fetch(testUrl, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -59,14 +62,23 @@ export default function LoginScreen() {
       
       clearTimeout(timeoutId);
       console.log("[Login] Backend status response:", response.status);
+      console.log("[Login] Response headers:", JSON.stringify(Object.fromEntries(response.headers.entries())));
       
-      if (response.ok) {
+      if (response.status === 200 || response.status === 400) {
         setBackendStatus("online");
       } else {
+        console.log("[Login] Unexpected status code:", response.status);
+        const text = await response.text();
+        console.log("[Login] Response body:", text);
         setBackendStatus("offline");
       }
     } catch (error) {
       console.error("[Login] Backend status check failed:", error);
+      if (error instanceof Error) {
+        console.error("[Login] Error name:", error.name);
+        console.error("[Login] Error message:", error.message);
+        console.error("[Login] Error stack:", error.stack);
+      }
       setBackendStatus("offline");
     }
   };
