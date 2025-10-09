@@ -81,7 +81,7 @@ export default function DatePicker({
     }
   };
 
-  const getDaysInMonth = (date: Date): Date[] => {
+  const getDaysInMonth = (date: Date): (Date | null)[] => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
@@ -89,10 +89,10 @@ export default function DatePicker({
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
 
-    const days: Date[] = [];
+    const days: (Date | null)[] = [];
 
     for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(new Date(0));
+      days.push(null);
     }
 
     for (let i = 1; i <= daysInMonth; i++) {
@@ -114,8 +114,8 @@ export default function DatePicker({
     );
   };
 
-  const handleDateSelect = (date: Date) => {
-    if (date.getTime() === 0) return;
+  const handleDateSelect = (date: Date | null) => {
+    if (!date) return;
 
     if (minimumDate && date < minimumDate) return;
     if (maximumDate && date > maximumDate) return;
@@ -124,15 +124,15 @@ export default function DatePicker({
     setShow(false);
   };
 
-  const isDateDisabled = (date: Date): boolean => {
-    if (date.getTime() === 0) return true;
+  const isDateDisabled = (date: Date | null): boolean => {
+    if (!date) return true;
     if (minimumDate && date < minimumDate) return true;
     if (maximumDate && date > maximumDate) return true;
     return false;
   };
 
-  const isDateSelected = (date: Date): boolean => {
-    if (!value || date.getTime() === 0) return false;
+  const isDateSelected = (date: Date | null): boolean => {
+    if (!value || !date) return false;
     return (
       date.getDate() === value.getDate() &&
       date.getMonth() === value.getMonth() &&
@@ -140,8 +140,8 @@ export default function DatePicker({
     );
   };
 
-  const isToday = (date: Date): boolean => {
-    if (date.getTime() === 0) return false;
+  const isToday = (date: Date | null): boolean => {
+    if (!date) return false;
     const today = new Date();
     return (
       date.getDate() === today.getDate() &&
@@ -213,7 +213,7 @@ export default function DatePicker({
 
             <View style={styles.daysGrid}>
               {days.map((date, index) => {
-                const isEmpty = date.getTime() === 0;
+                const isEmpty = date === null;
                 const disabled = isDateDisabled(date);
                 const selected = isDateSelected(date);
                 const today = isToday(date);
@@ -229,7 +229,7 @@ export default function DatePicker({
                     onPress={() => handleDateSelect(date)}
                     disabled={isEmpty || disabled}
                   >
-                    {!isEmpty && (
+                    {!isEmpty && date && (
                       <Text
                         style={[
                           styles.dayText,

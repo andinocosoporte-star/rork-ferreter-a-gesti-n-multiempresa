@@ -6,11 +6,15 @@ import { createContext } from "./trpc/create-context";
 
 const app = new Hono();
 
+// Use a more conservative CORS configuration. When credentials are enabled,
+// Access-Control-Allow-Origin must not be '*'. To avoid accidental leaks in
+// production keep credentials disabled unless you explicitly set ALLOWED_ORIGIN.
 app.use("*", cors({
-  origin: "*",
+  origin: process.env.ALLOWED_ORIGIN || "*",
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
+  // Disable credentials by default to avoid sending cookies with '*' origin.
+  credentials: false,
 }));
 
 app.onError((err, c) => {
