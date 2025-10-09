@@ -21,7 +21,7 @@ export default function QuoteDetailScreen() {
             <ArrowLeft size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detalle de Cotización</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 40 }}></View>
         </View>
         <View style={styles.content}>
           <Text style={styles.emptyText}>Cotización no encontrada</Text>

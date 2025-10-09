@@ -21,7 +21,7 @@ export default function SaleDetailScreen() {
             <ArrowLeft size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detalle de Venta</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 40 }}></View>
         </View>
         <View style={styles.content}>
           <Text style={styles.emptyText}>Venta no encontrada</Text>
