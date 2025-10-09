@@ -41,6 +41,7 @@ const quoteItemSchema = z.object({
 export default publicProcedure
   .input(
     z.object({
+      date: z.date(),
       validUntil: z.date(),
       customerName: z.string(),
       customerDocument: z.string(),
@@ -71,7 +72,6 @@ export default publicProcedure
     const quote = {
       id: `quote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       quoteNumber,
-      date: new Date(),
       ...input,
       status: 'pending' as const,
       createdAt: new Date(),

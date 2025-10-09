@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import Colors from "@/constants/colors";
+import DatePicker from "@/components/DatePicker";
 
 interface QuoteItem {
   productId: string;
@@ -22,7 +23,8 @@ interface QuoteForm {
   customerDocument: string;
   customerPhone: string;
   customerEmail: string;
-  validUntil: string;
+  date: Date;
+  validUntil: Date;
   notes: string;
 }
 
@@ -31,7 +33,8 @@ const emptyForm: QuoteForm = {
   customerDocument: "",
   customerPhone: "",
   customerEmail: "",
-  validUntil: "",
+  date: new Date(),
+  validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   notes: "",
 };
 
@@ -150,11 +153,6 @@ export default function QuotesScreen() {
       return;
     }
 
-    if (!form.validUntil) {
-      Alert.alert("Error", "Por favor ingresa la fecha de validez");
-      return;
-    }
-
     if (items.length === 0) {
       Alert.alert("Error", "Por favor agrega al menos un producto");
       return;
@@ -164,7 +162,8 @@ export default function QuotesScreen() {
 
     createMutation.mutate({
       ...form,
-      validUntil: new Date(form.validUntil),
+      date: form.date,
+      validUntil: form.validUntil,
       items: items.map((item) => ({
         productId: item.productId,
         productCode: item.productCode,
@@ -279,6 +278,23 @@ export default function QuotesScreen() {
             </View>
 
             <ScrollView style={styles.modalBody}>
+              <Text style={styles.sectionTitle}>Información de la Cotización</Text>
+              
+              <DatePicker
+                label="Fecha de Cotización *"
+                value={form.date}
+                onChange={(date) => setForm({ ...form, date })}
+                mode="date"
+              />
+
+              <DatePicker
+                label="Válida hasta *"
+                value={form.validUntil}
+                onChange={(date) => setForm({ ...form, validUntil: date })}
+                mode="date"
+                minimumDate={form.date}
+              />
+
               <Text style={styles.sectionTitle}>Información del Cliente</Text>
               
               <Text style={styles.label}>Nombre *</Text>
@@ -318,14 +334,6 @@ export default function QuotesScreen() {
                 onChangeText={(text) => setForm({ ...form, customerEmail: text })}
                 placeholder="correo@ejemplo.com"
                 keyboardType="email-address"
-              />
-
-              <Text style={styles.label}>Válida hasta *</Text>
-              <TextInput
-                style={styles.input}
-                value={form.validUntil}
-                onChangeText={(text) => setForm({ ...form, validUntil: text })}
-                placeholder="YYYY-MM-DD"
               />
 
               <Text style={styles.sectionTitle}>Productos</Text>

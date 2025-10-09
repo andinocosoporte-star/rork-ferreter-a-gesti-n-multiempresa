@@ -46,6 +46,7 @@ export default publicProcedure
       customerDocument: z.string(),
       customerPhone: z.string(),
       customerEmail: z.string(),
+      date: z.date(),
       items: z.array(saleItemSchema),
       subtotal: z.number(),
       discount: z.number(),
@@ -79,7 +80,6 @@ export default publicProcedure
     const sale = {
       id: `sale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       saleNumber,
-      date: new Date(),
       ...input,
       status: 'completed' as const,
       createdAt: new Date(),

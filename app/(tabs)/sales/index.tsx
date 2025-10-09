@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import Colors from "@/constants/colors";
+import DatePicker from "@/components/DatePicker";
 
 interface SaleItem {
   productId: string;
@@ -23,6 +24,7 @@ interface SaleForm {
   customerDocument: string;
   customerPhone: string;
   customerEmail: string;
+  date: Date;
   paymentMethod: string;
   paymentType: 'cash' | 'credit';
   notes: string;
@@ -34,6 +36,7 @@ const emptyForm: SaleForm = {
   customerDocument: "",
   customerPhone: "",
   customerEmail: "",
+  date: new Date(),
   paymentMethod: "efectivo",
   paymentType: "cash",
   notes: "",
@@ -188,6 +191,7 @@ export default function SalesScreen() {
 
     createMutation.mutate({
       ...form,
+      date: form.date,
       items: items.map((item) => ({
         productId: item.productId,
         productCode: item.productCode,
@@ -288,6 +292,15 @@ export default function SalesScreen() {
             </View>
 
             <ScrollView style={styles.modalBody}>
+              <Text style={styles.sectionTitle}>Información de la Venta</Text>
+              
+              <DatePicker
+                label="Fecha de Venta *"
+                value={form.date}
+                onChange={(date) => setForm({ ...form, date })}
+                mode="date"
+              />
+
               <Text style={styles.sectionTitle}>Información del Cliente</Text>
               
               <TouchableOpacity

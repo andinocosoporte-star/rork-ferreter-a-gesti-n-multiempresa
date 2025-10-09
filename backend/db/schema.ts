@@ -113,12 +113,68 @@ export type CreditTransaction = {
   createdAt: Date;
 };
 
+export type Company = {
+  id: string;
+  name: string;
+  legalName: string;
+  taxId: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  country: string;
+  logo?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Branch = {
+  id: string;
+  companyId: string;
+  code: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Role = {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  companyId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string;
+  roleId: string;
+  companyId: string;
+  branchId?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type InMemoryDB = {
   products: Product[];
   sales: Sale[];
   quotes: Quote[];
   customers: Customer[];
   creditTransactions: CreditTransaction[];
+  companies: Company[];
+  branches: Branch[];
+  roles: Role[];
+  users: User[];
 };
 
 export const db: InMemoryDB = {
@@ -966,6 +1022,129 @@ export const db: InMemoryDB = {
       branchId: "branch_1",
       createdBy: "user_1",
       createdAt: new Date("2025-03-18T10:00:00"),
+    },
+  ],
+  companies: [
+    {
+      id: "company_1",
+      name: "Ferretería El Tornillo",
+      legalName: "Ferretería El Tornillo S.A. de C.V.",
+      taxId: "0614-123456-101-2",
+      email: "info@ferreteriaeltornillo.com",
+      phone: "2200-1234",
+      address: "Av. Principal #123",
+      city: "San Salvador",
+      country: "El Salvador",
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    },
+  ],
+  branches: [
+    {
+      id: "branch_1",
+      companyId: "company_1",
+      code: "SUC-001",
+      name: "Sucursal Centro",
+      email: "centro@ferreteriaeltornillo.com",
+      phone: "2200-1234",
+      address: "Av. Principal #123, Centro Histórico",
+      city: "San Salvador",
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    },
+    {
+      id: "branch_2",
+      companyId: "company_1",
+      code: "SUC-002",
+      name: "Sucursal Santa Tecla",
+      email: "santatecla@ferreteriaeltornillo.com",
+      phone: "2200-5678",
+      address: "Calle Los Almendros #456",
+      city: "Santa Tecla",
+      isActive: true,
+      createdAt: new Date("2024-02-01"),
+      updatedAt: new Date("2024-02-01"),
+    },
+    {
+      id: "branch_3",
+      companyId: "company_1",
+      code: "SUC-003",
+      name: "Sucursal Soyapango",
+      email: "soyapango@ferreteriaeltornillo.com",
+      phone: "2200-9012",
+      address: "Boulevard del Ejército #789",
+      city: "Soyapango",
+      isActive: true,
+      createdAt: new Date("2024-03-01"),
+      updatedAt: new Date("2024-03-01"),
+    },
+  ],
+  roles: [
+    {
+      id: "role_1",
+      name: "Administrador",
+      description: "Acceso completo al sistema",
+      permissions: ["all"],
+      companyId: "company_1",
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    },
+    {
+      id: "role_2",
+      name: "Vendedor",
+      description: "Puede crear ventas y cotizaciones",
+      permissions: ["sales.create", "sales.read", "quotes.create", "quotes.read", "inventory.read", "customers.read"],
+      companyId: "company_1",
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    },
+    {
+      id: "role_3",
+      name: "Almacenista",
+      description: "Gestiona inventario",
+      permissions: ["inventory.create", "inventory.read", "inventory.update", "inventory.delete"],
+      companyId: "company_1",
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    },
+  ],
+  users: [
+    {
+      id: "user_1",
+      email: "admin@ferreteriaeltornillo.com",
+      name: "Carlos Martínez",
+      phone: "7890-1234",
+      roleId: "role_1",
+      companyId: "company_1",
+      branchId: "branch_1",
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    },
+    {
+      id: "user_2",
+      email: "vendedor1@ferreteriaeltornillo.com",
+      name: "María González",
+      phone: "7890-5678",
+      roleId: "role_2",
+      companyId: "company_1",
+      branchId: "branch_1",
+      isActive: true,
+      createdAt: new Date("2024-01-15"),
+      updatedAt: new Date("2024-01-15"),
+    },
+    {
+      id: "user_3",
+      email: "almacen@ferreteriaeltornillo.com",
+      name: "José Ramírez",
+      phone: "7890-9012",
+      roleId: "role_3",
+      companyId: "company_1",
+      branchId: "branch_2",
+      isActive: true,
+      createdAt: new Date("2024-02-01"),
+      updatedAt: new Date("2024-02-01"),
     },
   ],
 };
