@@ -248,7 +248,9 @@ export default function QuotesScreen() {
                 <View style={styles.quoteInfo}>
                   <Calendar size={14} color={Colors.light.textSecondary} />
                   <Text style={styles.quoteInfoText}>
-                    Válida hasta: {new Date(quote.validUntil).toLocaleDateString()}
+                    Válida hasta: {quote.validUntil instanceof Date 
+                      ? quote.validUntil.toLocaleDateString()
+                      : new Date(quote.validUntil).toLocaleDateString()}
                   </Text>
                 </View>
               </View>

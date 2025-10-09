@@ -268,7 +268,9 @@ export default function SalesScreen() {
                 <View style={styles.saleInfo}>
                   <Calendar size={14} color={Colors.light.textSecondary} />
                   <Text style={styles.saleInfoText}>
-                    {new Date(sale.date).toLocaleDateString()}
+                    {sale.date instanceof Date 
+                      ? sale.date.toLocaleDateString()
+                      : new Date(sale.date).toLocaleDateString()}
                   </Text>
                 </View>
                 <View style={styles.saleInfo}>

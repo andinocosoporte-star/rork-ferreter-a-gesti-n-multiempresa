@@ -35,27 +35,34 @@ export default function DatePicker({
   };
 
   const formatDate = (date: Date): string => {
-    if (!date) return placeholder;
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return placeholder;
+    }
     
-    if (mode === "date") {
-      return date.toLocaleDateString("es-ES", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-    } else if (mode === "time") {
-      return date.toLocaleTimeString("es-ES", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } else {
-      return date.toLocaleString("es-ES", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    try {
+      if (mode === "date") {
+        return date.toLocaleDateString("es-ES", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+      } else if (mode === "time") {
+        return date.toLocaleTimeString("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } else {
+        return date.toLocaleString("es-ES", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    } catch (error) {
+      console.error("[DatePicker] Error formatting date:", error);
+      return placeholder;
     }
   };
 
