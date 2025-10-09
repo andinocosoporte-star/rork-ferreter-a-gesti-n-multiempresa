@@ -13,6 +13,11 @@ import createSale from "./routes/sales/create-sale/route";
 import getQuotes from "./routes/quotes/get-quotes/route";
 import createQuote from "./routes/quotes/create-quote/route";
 import updateQuoteStatus from "./routes/quotes/update-quote-status/route";
+import { getCustomersProcedure } from "./routes/customers/get-customers/route";
+import { createCustomerProcedure } from "./routes/customers/create-customer/route";
+import { getNextCustomerCodeProcedure } from "./routes/customers/get-next-code/route";
+import { getCustomerDetailsProcedure } from "./routes/customers/get-customer-details/route";
+import { addPaymentProcedure } from "./routes/customers/add-payment/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -36,6 +41,13 @@ export const appRouter = createTRPCRouter({
     getQuotes,
     createQuote,
     updateQuoteStatus,
+  }),
+  customers: createTRPCRouter({
+    getCustomers: getCustomersProcedure,
+    createCustomer: createCustomerProcedure,
+    getNextCode: getNextCustomerCodeProcedure,
+    getCustomerDetails: getCustomerDetailsProcedure,
+    addPayment: addPaymentProcedure,
   }),
 });
 

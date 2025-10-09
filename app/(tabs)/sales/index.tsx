@@ -17,20 +17,24 @@ interface SaleItem {
 }
 
 interface SaleForm {
+  customerId?: string;
   customerName: string;
   customerDocument: string;
   customerPhone: string;
   customerEmail: string;
   paymentMethod: string;
+  paymentType: 'cash' | 'credit';
   notes: string;
 }
 
 const emptyForm: SaleForm = {
+  customerId: undefined,
   customerName: "",
   customerDocument: "",
   customerPhone: "",
   customerEmail: "",
   paymentMethod: "efectivo",
+  paymentType: "cash",
   notes: "",
 };
 
@@ -38,9 +42,11 @@ export default function SalesScreen() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showProductSelector, setShowProductSelector] = useState<boolean>(false);
+  const [showCustomerSelector, setShowCustomerSelector] = useState<boolean>(false);
   const [form, setForm] = useState<SaleForm>(emptyForm);
   const [items, setItems] = useState<SaleItem[]>([]);
   const [productSearch, setProductSearch] = useState<string>("");
+  const [customerSearch, setCustomerSearch] = useState<string>("");
 
   const companyId = "company_1";
   const branchId = "branch_1";
@@ -48,6 +54,7 @@ export default function SalesScreen() {
 
   const salesQuery = trpc.sales.getSales.useQuery({ companyId, branchId });
   const productsQuery = trpc.inventory.getProducts.useQuery({ companyId, branchId });
+  const customersQuery = trpc.customers.getCustomers.useQuery({ companyId, branchId });
   
   const createMutation = trpc.sales.createSale.useMutation({
     onSuccess: () => {
@@ -65,6 +72,7 @@ export default function SalesScreen() {
 
   const sales = salesQuery.data || [];
   const products = productsQuery.data || [];
+  const customers = customersQuery.data || [];
   
   const filteredSales = sales.filter((s) =>
     s.saleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -75,6 +83,26 @@ export default function SalesScreen() {
     p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
     p.code.toLowerCase().includes(productSearch.toLowerCase())
   );
+
+  const filteredCustomers = customers.filter((c) =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.code.toLowerCase().includes(customerSearch.toLowerCase())
+  );
+
+  const selectCustomer = (customerId: string) => {
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) return;
+
+    setForm({
+      ...form,
+      customerId: customer.id,
+      customerName: customer.name,
+      customerEmail: customer.email,
+      customerPhone: customer.phone,
+    });
+    setShowCustomerSelector(false);
+    setCustomerSearch("");
+  };
 
   const addProduct = (productId: string) => {
     const product = products.find((p) => p.id === productId);
@@ -146,6 +174,11 @@ export default function SalesScreen() {
 
     if (items.length === 0) {
       Alert.alert("Error", "Por favor agrega al menos un producto");
+      return;
+    }
+
+    if (form.paymentType === 'credit' && !form.customerId) {
+      Alert.alert("Error", "Para ventas a crédito debes seleccionar un cliente registrado");
       return;
     }
 
@@ -270,6 +303,15 @@ export default function SalesScreen() {
             <ScrollView style={styles.modalBody}>
               <Text style={styles.sectionTitle}>Información del Cliente</Text>
               
+              <TouchableOpacity
+                style={styles.selectCustomerButton}
+                onPress={() => setShowCustomerSelector(true)}
+              >
+                <Text style={styles.selectCustomerButtonText}>
+                  {form.customerId ? "Cliente Seleccionado" : "Seleccionar Cliente Registrado"}
+                </Text>
+              </TouchableOpacity>
+
               <Text style={styles.label}>Nombre *</Text>
               <TextInput
                 style={styles.input}
@@ -378,6 +420,29 @@ export default function SalesScreen() {
                 </View>
               </View>
 
+              <Text style={styles.label}>Tipo de Pago</Text>
+              <View style={styles.paymentMethods}>
+                {[{ value: "cash", label: "Efectivo" }, { value: "credit", label: "Crédito" }].map((type) => (
+                  <TouchableOpacity
+                    key={type.value}
+                    style={[
+                      styles.paymentMethod,
+                      form.paymentType === type.value && styles.paymentMethodActive,
+                    ]}
+                    onPress={() => setForm({ ...form, paymentType: type.value as 'cash' | 'credit' })}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentMethodText,
+                        form.paymentType === type.value && styles.paymentMethodTextActive,
+                      ]}
+                    >
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <Text style={styles.label}>Método de Pago</Text>
               <View style={styles.paymentMethods}>
                 {["efectivo", "tarjeta", "transferencia"].map((method) => (
@@ -467,6 +532,48 @@ export default function SalesScreen() {
                     <Text style={styles.productItemStock}>Stock: {product.stock} {product.unit}</Text>
                   </View>
                   <Text style={styles.productItemPrice}>${product.price.toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showCustomerSelector} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.productSelectorModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Seleccionar Cliente</Text>
+              <TouchableOpacity onPress={() => setShowCustomerSelector(false)}>
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.searchContainer}>
+              <Search size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar clientes..."
+                value={customerSearch}
+                onChangeText={setCustomerSearch}
+                placeholderTextColor={Colors.light.textSecondary}
+              />
+            </View>
+
+            <ScrollView style={styles.productList}>
+              {filteredCustomers.map((customer) => (
+                <TouchableOpacity
+                  key={customer.id}
+                  style={styles.productItem}
+                  onPress={() => selectCustomer(customer.id)}
+                >
+                  <View>
+                    <Text style={styles.productItemName}>{customer.name}</Text>
+                    <Text style={styles.productItemCode}>Código: {customer.code}</Text>
+                    <Text style={styles.productItemStock}>
+                      Crédito disponible: ${customer.available.toFixed(2)}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -870,5 +977,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700" as const,
     color: Colors.light.success,
+  },
+  selectCustomerButton: {
+    backgroundColor: Colors.light.info + "20",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    alignItems: "center" as const,
+    borderWidth: 1,
+    borderColor: Colors.light.info,
+  },
+  selectCustomerButtonText: {
+    color: Colors.light.info,
+    fontSize: 14,
+    fontWeight: "600" as const,
   },
 });

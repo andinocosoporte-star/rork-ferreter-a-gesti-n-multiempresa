@@ -16,6 +16,7 @@ const saleItemSchema = z.object({
 export default publicProcedure
   .input(
     z.object({
+      customerId: z.string().optional(),
       customerName: z.string(),
       customerDocument: z.string(),
       customerPhone: z.string(),
@@ -26,6 +27,7 @@ export default publicProcedure
       tax: z.number(),
       total: z.number(),
       paymentMethod: z.string(),
+      paymentType: z.enum(['cash', 'credit']),
       notes: z.string(),
       companyId: z.string(),
       branchId: z.string(),
@@ -67,5 +69,45 @@ export default publicProcedure
     }
 
     db.sales.push(sale);
+
+    if (input.paymentType === 'credit' && input.customerId) {
+      const customer = db.customers.find((c) => c.id === input.customerId);
+      
+      if (customer) {
+        const existingTransactions = db.creditTransactions.filter(
+          (t) => t.customerId === input.customerId
+        );
+        
+        const currentBalance = existingTransactions.length > 0
+          ? existingTransactions[existingTransactions.length - 1].balance
+          : 0;
+        
+        const newBalance = currentBalance + input.total;
+        
+        if (newBalance > customer.creditLimit) {
+          throw new Error(
+            `El crédito excede el límite disponible. Límite: ${customer.creditLimit}, Deuda actual: ${currentBalance}, Nueva deuda: ${newBalance}`
+          );
+        }
+        
+        const creditTransaction = {
+          id: `transaction-${Date.now()}-${Math.random()}`,
+          customerId: input.customerId,
+          type: 'sale' as const,
+          saleId: sale.id,
+          amount: input.total,
+          balance: newBalance,
+          description: `Venta ${saleNumber}`,
+          date: new Date(),
+          companyId: input.companyId,
+          branchId: input.branchId,
+          createdBy: input.createdBy,
+          createdAt: new Date(),
+        };
+        
+        db.creditTransactions.push(creditTransaction);
+      }
+    }
+
     return sale;
   });

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
-import { Building2, MapPin, Users, UserCog, LogOut, ChevronRight } from "lucide-react-native";
+import { Building2, MapPin, Users, UserCog, LogOut, ChevronRight, UserCircle } from "lucide-react-native";
 import React from "react";
+import { useRouter } from "expo-router";
 
 import Colors from "@/constants/colors";
 
@@ -13,6 +14,8 @@ interface SettingItem {
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  
   const companySettings: SettingItem[] = [
     {
       id: "company",
@@ -27,6 +30,13 @@ export default function SettingsScreen() {
       subtitle: "3 sucursales activas",
       icon: <MapPin size={24} color={Colors.light.info} />,
       onPress: () => console.log("Branches"),
+    },
+    {
+      id: "customers",
+      title: "Clientes",
+      subtitle: "Gestionar clientes y créditos",
+      icon: <UserCircle size={24} color={Colors.light.primary} />,
+      onPress: () => router.push("/(tabs)/customers"),
     },
   ];
 
