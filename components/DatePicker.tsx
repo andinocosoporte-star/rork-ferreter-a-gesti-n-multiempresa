@@ -1,7 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Calendar } from "lucide-react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Dimensions,
+} from "react-native";
+import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
 interface DatePickerProps {
@@ -14,6 +20,23 @@ interface DatePickerProps {
   placeholder?: string;
 }
 
+const MONTHS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
 export default function DatePicker({
   label,
   value,
@@ -24,21 +47,13 @@ export default function DatePicker({
   placeholder = "Seleccionar fecha",
 }: DatePickerProps) {
   const [show, setShow] = useState<boolean>(false);
-
-  const handleChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === "android") {
-      setShow(false);
-    }
-    if (selectedDate) {
-      onChange(selectedDate);
-    }
-  };
+  const [currentMonth, setCurrentMonth] = useState<Date>(value || new Date());
 
   const formatDate = (date: Date): string => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
       return placeholder;
     }
-    
+
     try {
       if (mode === "date") {
         return date.toLocaleDateString("es-ES", {
@@ -66,6 +81,77 @@ export default function DatePicker({
     }
   };
 
+  const getDaysInMonth = (date: Date): Date[] => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days: Date[] = [];
+
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(new Date(0));
+    }
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(new Date(year, month, i));
+    }
+
+    return days;
+  };
+
+  const handlePreviousMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+    );
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
+    );
+  };
+
+  const handleDateSelect = (date: Date) => {
+    if (date.getTime() === 0) return;
+
+    if (minimumDate && date < minimumDate) return;
+    if (maximumDate && date > maximumDate) return;
+
+    onChange(date);
+    setShow(false);
+  };
+
+  const isDateDisabled = (date: Date): boolean => {
+    if (date.getTime() === 0) return true;
+    if (minimumDate && date < minimumDate) return true;
+    if (maximumDate && date > maximumDate) return true;
+    return false;
+  };
+
+  const isDateSelected = (date: Date): boolean => {
+    if (!value || date.getTime() === 0) return false;
+    return (
+      date.getDate() === value.getDate() &&
+      date.getMonth() === value.getMonth() &&
+      date.getFullYear() === value.getFullYear()
+    );
+  };
+
+  const isToday = (date: Date): boolean => {
+    if (date.getTime() === 0) return false;
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const days = getDaysInMonth(currentMonth);
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -74,29 +160,100 @@ export default function DatePicker({
         <Text style={styles.buttonText}>{formatDate(value)}</Text>
       </TouchableOpacity>
 
-      {show && (
-        <View>
-          <DateTimePicker
-            value={value || new Date()}
-            mode={mode}
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={handleChange}
-            minimumDate={minimumDate}
-            maximumDate={maximumDate}
-          />
-          {Platform.OS === "ios" && (
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => setShow(false)}
-            >
-              <Text style={styles.doneButtonText}>Listo</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
+      <Modal
+        visible={show}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShow(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShow(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>
+                {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShow(false)}
+              >
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.navigation}>
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={handlePreviousMonth}
+              >
+                <ChevronLeft size={24} color={Colors.light.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={handleNextMonth}
+              >
+                <ChevronRight size={24} color={Colors.light.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.daysHeader}>
+              {DAYS.map((day) => (
+                <Text key={day} style={styles.dayHeaderText}>
+                  {day}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.daysGrid}>
+              {days.map((date, index) => {
+                const isEmpty = date.getTime() === 0;
+                const disabled = isDateDisabled(date);
+                const selected = isDateSelected(date);
+                const today = isToday(date);
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.dayCell,
+                      selected && styles.dayCellSelected,
+                      today && !selected && styles.dayCellToday,
+                    ]}
+                    onPress={() => handleDateSelect(date)}
+                    disabled={isEmpty || disabled}
+                  >
+                    {!isEmpty && (
+                      <Text
+                        style={[
+                          styles.dayText,
+                          disabled && styles.dayTextDisabled,
+                          selected && styles.dayTextSelected,
+                          today && !selected && styles.dayTextToday,
+                        ]}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
+
+const { width } = Dimensions.get("window");
+const calendarWidth = Math.min(width - 40, 400);
 
 const styles = StyleSheet.create({
   container: {
@@ -123,16 +280,88 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     flex: 1,
   },
-  doneButton: {
-    backgroundColor: Colors.light.primary,
-    padding: 12,
-    borderRadius: 8,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center" as const,
     alignItems: "center" as const,
-    marginTop: 8,
   },
-  doneButtonText: {
+  modalContent: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 16,
+    padding: 20,
+    width: calendarWidth,
+    maxWidth: 400,
+  },
+  header: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  navigation: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    marginBottom: 16,
+  },
+  navButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.light.background,
+  },
+  daysHeader: {
+    flexDirection: "row" as const,
+    marginBottom: 8,
+  },
+  dayHeaderText: {
+    flex: 1,
+    textAlign: "center" as const,
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: Colors.light.textSecondary,
+  },
+  daysGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+  },
+  dayCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    padding: 4,
+  },
+  dayCellSelected: {
+    backgroundColor: Colors.light.primary,
+    borderRadius: 8,
+  },
+  dayCellToday: {
+    borderWidth: 1,
+    borderColor: Colors.light.primary,
+    borderRadius: 8,
+  },
+  dayText: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  dayTextDisabled: {
+    color: Colors.light.textSecondary,
+    opacity: 0.3,
+  },
+  dayTextSelected: {
     color: Colors.light.cardBackground,
-    fontSize: 16,
+    fontWeight: "700" as const,
+  },
+  dayTextToday: {
+    color: Colors.light.primary,
     fontWeight: "600" as const,
   },
 });
