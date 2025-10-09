@@ -2,6 +2,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import { httpLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -22,12 +23,18 @@ export const trpcClient = trpc.createClient({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
       headers: async () => {
-        // Attempt to attach a token from AsyncStorage if present.
-        // We avoid synchronous storage reads here; consumers can set
-        // a per-request header if they keep tokens elsewhere.
-        return {
-          "Content-Type": "application/json",
-        };
+        // Attach Authorization header from AsyncStorage when available.
+        try {
+          const token = await AsyncStorage.getItem("@auth_token");
+          const base: Record<string, string> = { "Content-Type": "application/json" };
+          if (token) {
+            return { ...base, Authorization: `Bearer ${token}` };
+          }
+          return base;
+        } catch (e) {
+          // If storage fails, return minimal headers — do not throw.
+          return { "Content-Type": "application/json" };
+        }
       },
     }),
   ],
