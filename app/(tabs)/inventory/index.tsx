@@ -34,12 +34,12 @@ const emptyForm: ProductForm = {
   price: "0",
 };
 
-const CATEGORIES = ["Todos", "Construcción", "Hierro", "Pintura"];
+
 
 export default function InventoryScreen() {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
+
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -107,12 +107,9 @@ export default function InventoryScreen() {
         p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.category.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCategory =
-        selectedCategory === "Todos" || p.category === selectedCategory;
-
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     });
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, searchQuery]);
 
   const stats = useMemo(() => {
     const totalProducts = products.length;
@@ -324,27 +321,7 @@ export default function InventoryScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              styles.categoryChip,
-              selectedCategory === cat && styles.categoryChipActive,
-            ]}
-            onPress={() => setSelectedCategory(cat)}
-          >
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === cat && styles.categoryChipTextActive,
-              ]}
-            >
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {productsQuery.isLoading ? (
@@ -647,31 +624,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
-  categoriesContainer: {
-    backgroundColor: Colors.light.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.light.background,
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: Colors.light.primary,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: Colors.light.text,
-  },
-  categoryChipTextActive: {
-    color: Colors.light.cardBackground,
-  },
+
   content: {
     flex: 1,
   },

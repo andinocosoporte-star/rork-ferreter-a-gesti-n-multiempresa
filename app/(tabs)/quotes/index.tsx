@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
-import { Plus, Search, Filter, Calendar, DollarSign, Download, X, Trash2, ShoppingCart } from "lucide-react-native";
+import { Plus, Calendar, DollarSign, Download, X, Trash2, ShoppingCart, Search } from "lucide-react-native";
 import React, { useState } from "react";
+import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import Colors from "@/constants/colors";
 
@@ -35,7 +36,7 @@ const emptyForm: QuoteForm = {
 };
 
 export default function QuotesScreen() {
-  const [searchQuery, setSearchQuery] = useState<string>("");
+
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showProductSelector, setShowProductSelector] = useState<boolean>(false);
   const [form, setForm] = useState<QuoteForm>(emptyForm);
@@ -75,10 +76,7 @@ export default function QuotesScreen() {
   const quotes = quotesQuery.data || [];
   const products = productsQuery.data || [];
   
-  const filteredQuotes = quotes.filter((q) =>
-    q.quoteNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    q.customerName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -219,35 +217,20 @@ export default function QuotesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar cotizaciones..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={Colors.light.textSecondary}
-          />
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.filterButton}>
-            <Filter size={20} color={Colors.light.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.addButton} onPress={() => setShowModal(true)}>
-            <Plus size={20} color={Colors.light.cardBackground} />
-            <Text style={styles.addButtonText}>Nueva Cotización</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.addButton} onPress={() => setShowModal(true)}>
+          <Plus size={20} color={Colors.light.cardBackground} />
+          <Text style={styles.addButtonText}>Nueva Cotización</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {quotesQuery.isLoading ? (
           <Text style={styles.loadingText}>Cargando cotizaciones...</Text>
-        ) : filteredQuotes.length === 0 ? (
+        ) : quotes.length === 0 ? (
           <Text style={styles.emptyText}>No hay cotizaciones registradas</Text>
         ) : (
-          filteredQuotes.map((quote) => (
-            <View key={quote.id} style={styles.quoteCard}>
+          quotes.map((quote) => (
+            <TouchableOpacity key={quote.id} style={styles.quoteCard} onPress={() => router.push(`/quotes/${quote.id}`)}>
               <View style={styles.quoteHeader}>
                 <View>
                   <Text style={styles.quoteNumber}>{quote.quoteNumber}</Text>
@@ -277,7 +260,7 @@ export default function QuotesScreen() {
                   <Text style={styles.downloadText}>Descargar PDF</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
@@ -498,45 +481,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  searchContainer: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    fontSize: 14,
-    color: Colors.light.text,
-  },
-  headerActions: {
-    flexDirection: "row" as const,
-    gap: 12,
-  },
-  filterButton: {
-    flex: 1,
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
   addButton: {
-    flex: 2,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     backgroundColor: Colors.light.primary,
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 8,
   },
@@ -871,5 +822,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700" as const,
     color: Colors.light.success,
+  },
+  searchContainer: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 14,
+    color: Colors.light.text,
   },
 });

@@ -1,0 +1,338 @@
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { ArrowLeft, Download, Calendar, User } from "lucide-react-native";
+import React from "react";
+import { trpc } from "@/lib/trpc";
+import Colors from "@/constants/colors";
+
+export default function QuoteDetailScreen() {
+  const { quoteId } = useLocalSearchParams<{ quoteId: string }>();
+  const companyId = "company_1";
+  const branchId = "branch_1";
+
+  const quotesQuery = trpc.quotes.getQuotes.useQuery({ companyId, branchId });
+  const quote = quotesQuery.data?.find((q) => q.id === quoteId);
+
+  if (!quote) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detalle de Cotización</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.emptyText}>Cotización no encontrada</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return Colors.light.success;
+      case "pending":
+        return Colors.light.warning;
+      case "rejected":
+        return Colors.light.danger;
+      case "expired":
+        return Colors.light.textSecondary;
+      default:
+        return Colors.light.textSecondary;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "Aprobada";
+      case "pending":
+        return "Pendiente";
+      case "rejected":
+        return "Rechazada";
+      case "expired":
+        return "Expirada";
+      default:
+        return status;
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    Alert.alert("Descargar PDF", "Funcionalidad de descarga PDF próximamente");
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ArrowLeft size={24} color={Colors.light.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Detalle de Cotización</Text>
+        <TouchableOpacity onPress={handleDownloadPDF} style={styles.downloadButton}>
+          <Download size={20} color={Colors.light.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.quoteNumber}>{quote.quoteNumber}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(quote.status) + "20" }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(quote.status) }]}>
+                {getStatusText(quote.status)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Calendar size={16} color={Colors.light.textSecondary} />
+            <Text style={styles.infoText}>
+              Válida hasta: {new Date(quote.validUntil).toLocaleDateString("es-ES", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Información del Cliente</Text>
+          <View style={styles.infoRow}>
+            <User size={16} color={Colors.light.textSecondary} />
+            <Text style={styles.infoText}>{quote.customerName}</Text>
+          </View>
+          {quote.customerEmail && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Email:</Text>
+              <Text style={styles.infoText}>{quote.customerEmail}</Text>
+            </View>
+          )}
+          {quote.customerPhone && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Teléfono:</Text>
+              <Text style={styles.infoText}>{quote.customerPhone}</Text>
+            </View>
+          )}
+          {quote.customerDocument && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Documento:</Text>
+              <Text style={styles.infoText}>{quote.customerDocument}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Productos</Text>
+          {quote.items.map((item, index) => (
+            <View key={index} style={styles.itemRow}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.productName}</Text>
+                <Text style={styles.itemCode}>Código: {item.productCode}</Text>
+                <Text style={styles.itemDetails}>
+                  {item.quantity} {item.unit} × ${item.unitPrice.toFixed(2)}
+                  {item.discount > 0 && ` (-${item.discount}%)`}
+                </Text>
+              </View>
+              <Text style={styles.itemTotal}>${item.subtotal.toFixed(2)}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.totalsCard}>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Subtotal:</Text>
+            <Text style={styles.totalValue}>${quote.subtotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>IGV (18%):</Text>
+            <Text style={styles.totalValue}>${quote.tax.toFixed(2)}</Text>
+          </View>
+          {quote.discount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Descuento:</Text>
+              <Text style={[styles.totalValue, { color: Colors.light.danger }]}>
+                -${quote.discount.toFixed(2)}
+              </Text>
+            </View>
+          )}
+          <View style={[styles.totalRow, styles.totalRowFinal]}>
+            <Text style={styles.totalLabelFinal}>Total:</Text>
+            <Text style={styles.totalValueFinal}>${quote.total.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        {quote.notes && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Notas</Text>
+            <Text style={styles.notesText}>{quote.notes}</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
+  header: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
+    backgroundColor: Colors.light.cardBackground,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  downloadButton: {
+    padding: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
+  },
+  emptyText: {
+    textAlign: "center" as const,
+    color: Colors.light.textSecondary,
+    marginTop: 20,
+  },
+  card: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    marginBottom: 12,
+  },
+  quoteNumber: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+    marginBottom: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.textSecondary,
+  },
+  infoText: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  itemRow: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  itemCode: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginBottom: 2,
+  },
+  itemDetails: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  itemTotal: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
+  },
+  totalsCard: {
+    backgroundColor: Colors.light.primary + "10",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  totalRow: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    marginBottom: 8,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  totalValue: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+  },
+  totalRowFinal: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  totalLabelFinal: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+  },
+  totalValueFinal: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
+  },
+  notesText: {
+    fontSize: 14,
+    color: Colors.light.text,
+    lineHeight: 20,
+  },
+});
