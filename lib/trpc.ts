@@ -20,11 +20,28 @@ export const trpcClient = trpc.createClient({
     httpLink({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
+      headers: () => {
+        return {
+          "Content-Type": "application/json",
+        };
+      },
       fetch: async (url, options) => {
         try {
           console.log("[tRPC] Making request to:", url);
+          console.log("[tRPC] Request options:", JSON.stringify(options, null, 2));
+          
           const response = await fetch(url, options);
           console.log("[tRPC] Response status:", response.status);
+          console.log("[tRPC] Response headers:", JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+          
+          const clonedResponse = response.clone();
+          const text = await clonedResponse.text();
+          console.log("[tRPC] Response body:", text.substring(0, 500));
+          
+          if (!response.ok) {
+            console.error("[tRPC] Response not OK:", response.status, text);
+          }
+          
           return response;
         } catch (error) {
           console.error("[tRPC] Network error:", error);
