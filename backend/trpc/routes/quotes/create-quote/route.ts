@@ -2,6 +2,31 @@ import { publicProcedure } from "../../../create-context";
 import { db } from "../../../../db/schema";
 import { z } from "zod";
 
+function getNextQuoteNumber(companyId: string, branchId: string): string {
+  const quotes = db.quotes.filter(
+    (q) => q.companyId === companyId && q.branchId === branchId
+  );
+
+  if (quotes.length === 0) {
+    return "COT-00000001";
+  }
+
+  const numbers = quotes
+    .map((q) => q.quoteNumber)
+    .filter((num) => num.startsWith("COT-"))
+    .map((num) => {
+      const parts = num.split("-");
+      if (parts.length === 2) {
+        const correlativo = parseInt(parts[1]);
+        return isNaN(correlativo) ? 0 : correlativo;
+      }
+      return 0;
+    });
+
+  const maxNumber = Math.max(...numbers, 0);
+  return `COT-${String(maxNumber + 1).padStart(8, "0")}`;
+}
+
 const quoteItemSchema = z.object({
   productId: z.string(),
   productCode: z.string(),
@@ -41,7 +66,7 @@ export default publicProcedure
       }
     }
 
-    const quoteNumber = `C-${Date.now()}`;
+    const quoteNumber = getNextQuoteNumber(input.companyId, input.branchId);
     
     const quote = {
       id: `quote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

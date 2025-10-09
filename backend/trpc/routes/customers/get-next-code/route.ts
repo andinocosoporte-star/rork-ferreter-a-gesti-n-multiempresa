@@ -17,7 +17,7 @@ export const getNextCustomerCodeProcedure = publicProcedure
     );
 
     if (customers.length === 0) {
-      return "CLI-001";
+      return "CLI-0001";
     }
 
     const codes = customers
@@ -29,7 +29,7 @@ export const getNextCustomerCodeProcedure = publicProcedure
       });
 
     const maxCode = Math.max(...codes, 0);
-    const nextCode = `CLI-${String(maxCode + 1).padStart(3, "0")}`;
+    const nextCode = `CLI-${String(maxCode + 1).padStart(4, "0")}`;
 
     console.log("[getNextCustomerCode] Next code:", nextCode);
 

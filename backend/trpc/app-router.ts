@@ -10,9 +10,11 @@ import importProducts from "./routes/inventory/import-products/route";
 import getTemplate from "./routes/inventory/get-template/route";
 import getSales from "./routes/sales/get-sales/route";
 import createSale from "./routes/sales/create-sale/route";
+import { getNextSaleNumberProcedure } from "./routes/sales/get-next-number/route";
 import getQuotes from "./routes/quotes/get-quotes/route";
 import createQuote from "./routes/quotes/create-quote/route";
 import updateQuoteStatus from "./routes/quotes/update-quote-status/route";
+import { getNextQuoteNumberProcedure } from "./routes/quotes/get-next-number/route";
 import { getCustomersProcedure } from "./routes/customers/get-customers/route";
 import { createCustomerProcedure } from "./routes/customers/create-customer/route";
 import { getNextCustomerCodeProcedure } from "./routes/customers/get-next-code/route";
@@ -36,11 +38,13 @@ export const appRouter = createTRPCRouter({
   sales: createTRPCRouter({
     getSales,
     createSale,
+    getNextNumber: getNextSaleNumberProcedure,
   }),
   quotes: createTRPCRouter({
     getQuotes,
     createQuote,
     updateQuoteStatus,
+    getNextNumber: getNextQuoteNumberProcedure,
   }),
   customers: createTRPCRouter({
     getCustomers: getCustomersProcedure,

@@ -2,6 +2,31 @@ import { publicProcedure } from "../../../create-context";
 import { db } from "../../../../db/schema";
 import { z } from "zod";
 
+function getNextSaleNumber(companyId: string, branchId: string): string {
+  const sales = db.sales.filter(
+    (s) => s.companyId === companyId && s.branchId === branchId
+  );
+
+  if (sales.length === 0) {
+    return "DTE-01-00000001-00000000-00000001";
+  }
+
+  const numbers = sales
+    .map((s) => s.saleNumber)
+    .filter((num) => num.startsWith("DTE-"))
+    .map((num) => {
+      const parts = num.split("-");
+      if (parts.length === 5) {
+        const correlativo = parseInt(parts[4]);
+        return isNaN(correlativo) ? 0 : correlativo;
+      }
+      return 0;
+    });
+
+  const maxNumber = Math.max(...numbers, 0);
+  return `DTE-01-00000001-00000000-${String(maxNumber + 1).padStart(8, "0")}`;
+}
+
 const saleItemSchema = z.object({
   productId: z.string(),
   productCode: z.string(),
@@ -49,7 +74,7 @@ export default publicProcedure
       }
     }
 
-    const saleNumber = `V-${Date.now()}`;
+    const saleNumber = getNextSaleNumber(input.companyId, input.branchId);
     
     const sale = {
       id: `sale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
