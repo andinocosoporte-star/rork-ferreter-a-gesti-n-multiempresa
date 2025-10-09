@@ -28,11 +28,13 @@ export default function LoginScreen() {
 
   useEffect(() => {
     const url = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || "";
+    console.log("[Login] Environment variable EXPO_PUBLIC_RORK_API_BASE_URL:", url);
     setBackendUrl(url || "No configurado");
-    if (url && url !== "https://your-project-name.vercel.app") {
+    if (url && url !== "https://your-project-name.vercel.app" && url !== "No configurado") {
       checkBackendStatus(url);
     } else {
       setBackendStatus("offline");
+      console.log("[Login] Backend status set to offline - URL not configured properly");
     }
   }, []);
 
@@ -108,8 +110,8 @@ export default function LoginScreen() {
                 <Text style={styles.statusText}>Servidor no disponible</Text>
                 <Text style={styles.statusSubtext}>
                   {backendUrl === "No configurado" || !backendUrl
-                    ? "Debes configurar EXPO_PUBLIC_RORK_API_BASE_URL en el archivo .env con tu URL de Vercel"
-                    : `No se puede conectar a: ${backendUrl}`}
+                    ? "Reinicia el servidor Expo con: npx expo start -c"
+                    : `No se puede conectar a: ${backendUrl}\n\nSi acabas de configurar la URL, reinicia con: npx expo start -c`}
                 </Text>
               </View>
             </View>
