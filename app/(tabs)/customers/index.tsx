@@ -17,8 +17,8 @@ export default function CustomersScreen() {
   const [search, setSearch] = useState("");
 
   const customersQuery = trpc.customers.getCustomers.useQuery({
-    companyId: "company-1",
-    branchId: "branch-1",
+    companyId: "company_1",
+    branchId: "branch_1",
     search,
   });
 

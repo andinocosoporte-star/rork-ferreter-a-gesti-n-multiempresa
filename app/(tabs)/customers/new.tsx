@@ -22,8 +22,8 @@ export default function NewCustomerScreen() {
   const [creditLimit, setCreditLimit] = useState("");
 
   const nextCodeQuery = trpc.customers.getNextCode.useQuery({
-    companyId: "company-1",
-    branchId: "branch-1",
+    companyId: "company_1",
+    branchId: "branch_1",
   });
 
   const createCustomerMutation = trpc.customers.createCustomer.useMutation({
@@ -64,8 +64,8 @@ export default function NewCustomerScreen() {
       phone: phone.trim(),
       address: address.trim(),
       creditLimit: parseFloat(creditLimit) || 0,
-      companyId: "company-1",
-      branchId: "branch-1",
+      companyId: "company_1",
+      branchId: "branch_1",
     });
   };
 

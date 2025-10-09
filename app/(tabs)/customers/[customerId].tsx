@@ -55,9 +55,9 @@ export default function CustomerDetailsScreen() {
       customerId: customerId || "",
       amount,
       description: paymentDescription.trim(),
-      companyId: "company-1",
-      branchId: "branch-1",
-      createdBy: "user-1",
+      companyId: "company_1",
+      branchId: "branch_1",
+      createdBy: "user_1",
     });
   };
 
