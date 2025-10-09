@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Dimensions } from "react-native";
 import { Plus, Calendar, DollarSign, X, Trash2, ShoppingCart, Search } from "lucide-react-native";
 import React, { useState } from "react";
 import { router } from "expo-router";
@@ -74,6 +74,10 @@ export default function SalesScreen() {
   const sales = salesQuery.data || [];
   const products = productsQuery.data || [];
   const customers = customersQuery.data || [];
+  
+  console.log('[Sales] Sales count:', sales.length);
+  console.log('[Sales] Products count:', products.length);
+  console.log('[Sales] Customers count:', customers.length);
   
 
 
@@ -567,6 +571,9 @@ export default function SalesScreen() {
   );
 }
 
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -598,6 +605,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 100,
   },
   loadingText: {
     textAlign: "center" as const,
@@ -674,6 +682,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "95%",
+    width: isTablet ? "80%" : "100%",
+    alignSelf: "center" as const,
   },
   modalHeader: {
     flexDirection: "row" as const,
@@ -896,6 +906,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "80%",
+    width: isTablet ? "70%" : "100%",
+    alignSelf: "center" as const,
   },
   productList: {
     padding: 16,
@@ -934,7 +946,8 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     backgroundColor: Colors.light.background,
     borderRadius: 8,
-    paddingHorizontal: 12,
+    padding: 12,
+    marginHorizontal: 16,
     marginBottom: 12,
   },
   searchIcon: {

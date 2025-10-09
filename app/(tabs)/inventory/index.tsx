@@ -1,5 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Platform, Dimensions } from "react-native";
 import { Plus, Search, Download, Upload, Package, AlertCircle, X, FileDown } from "lucide-react-native";
 import React, { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
@@ -37,7 +36,6 @@ const emptyForm: ProductForm = {
 
 
 export default function InventoryScreen() {
-  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -274,7 +272,7 @@ export default function InventoryScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Search size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
@@ -507,6 +505,10 @@ export default function InventoryScreen() {
   );
 }
 
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+const numColumns = isTablet ? 3 : 1;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -523,7 +525,7 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     backgroundColor: Colors.light.background,
     borderRadius: 8,
-    paddingHorizontal: 12,
+    padding: 12,
     marginBottom: 16,
   },
   searchIcon: {
@@ -537,11 +539,13 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     gap: 12,
     marginBottom: 16,
   },
   statCard: {
     flex: 1,
+    minWidth: isTablet ? 150 : 100,
     backgroundColor: Colors.light.background,
     borderRadius: 8,
     padding: 12,
@@ -565,10 +569,12 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     gap: 8,
   },
   exportButton: {
     flex: 1,
+    minWidth: isTablet ? 120 : 80,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
@@ -585,6 +591,7 @@ const styles = StyleSheet.create({
   },
   importButton: {
     flex: 1,
+    minWidth: isTablet ? 120 : 80,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
@@ -601,6 +608,7 @@ const styles = StyleSheet.create({
   },
   templateButton: {
     flex: 1,
+    minWidth: isTablet ? 120 : 80,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
@@ -630,6 +638,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 100,
   },
   loadingText: {
     textAlign: "center" as const,
@@ -743,6 +752,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "90%",
+    width: isTablet ? "80%" : "100%",
+    alignSelf: "center" as const,
   },
   modalHeader: {
     flexDirection: "row" as const,

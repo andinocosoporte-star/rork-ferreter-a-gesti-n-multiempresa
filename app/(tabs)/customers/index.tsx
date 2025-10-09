@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Dimensions } from "react-native";
 import { Plus, Search, UserCircle, CreditCard, AlertCircle } from "lucide-react-native";
 import React, { useState, useMemo } from "react";
 import { useRouter } from "expo-router";
@@ -19,6 +19,8 @@ export default function CustomersScreen() {
   });
 
   const customers = customersQuery.data || [];
+  
+  console.log('[Customers] Customers count:', customers.length);
 
   const stats = useMemo(() => {
     const totalCustomers = customers.length;
@@ -124,6 +126,9 @@ export default function CustomersScreen() {
   );
 }
 
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -140,7 +145,7 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     backgroundColor: Colors.light.background,
     borderRadius: 8,
-    paddingHorizontal: 12,
+    padding: 12,
     marginBottom: 16,
   },
   searchIcon: {
@@ -154,11 +159,13 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     gap: 12,
     marginBottom: 16,
   },
   statCard: {
     flex: 1,
+    minWidth: isTablet ? 150 : 100,
     backgroundColor: Colors.light.background,
     borderRadius: 8,
     padding: 12,
@@ -199,6 +206,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 100,
   },
   loadingText: {
     textAlign: "center" as const,
