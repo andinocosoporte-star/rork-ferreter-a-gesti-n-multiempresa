@@ -1,32 +1,43 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from "react-native";
+import React, { useState } from "react";
 import { useRouter } from "expo-router";
+import { trpc } from "@/lib/trpc";
+import Colors from "@/constants/colors";
+
+interface CustomerForm {
+  code: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  creditLimit: string;
+}
+
+const emptyForm: CustomerForm = {
+  code: "",
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+  creditLimit: "0",
+};
 
 export default function NewCustomerScreen() {
   const router = useRouter();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [creditLimit, setCreditLimit] = useState("");
+  const [form, setForm] = useState<CustomerForm>(emptyForm);
 
-  const nextCodeQuery = trpc.customers.getNextCode.useQuery({
-    companyId: "company_1",
-    branchId: "branch_1",
-  });
+  const companyId = "company_1";
+  const branchId = "branch_1";
 
-  const createCustomerMutation = trpc.customers.createCustomer.useMutation({
+  const nextCodeQuery = trpc.customers.getNextCode.useQuery({ companyId, branchId });
+
+  React.useEffect(() => {
+    if (nextCodeQuery.data && !form.code) {
+      setForm((prev) => ({ ...prev, code: nextCodeQuery.data }));
+    }
+  }, [nextCodeQuery.data]);
+
+  const createMutation = trpc.customers.createCustomer.useMutation({
     onSuccess: () => {
       Alert.alert("Éxito", "Cliente creado correctamente", [
         {
@@ -40,143 +51,97 @@ export default function NewCustomerScreen() {
     },
   });
 
-  useEffect(() => {
-    if (nextCodeQuery.data) {
-      setCode(nextCodeQuery.data);
-    }
-  }, [nextCodeQuery.data]);
-
   const handleSave = () => {
-    if (!code.trim()) {
-      Alert.alert("Error", "El código de cliente es requerido");
+    if (!form.code || !form.name || !form.email || !form.phone) {
+      Alert.alert("Error", "Por favor completa los campos obligatorios");
       return;
     }
 
-    if (!name.trim()) {
-      Alert.alert("Error", "El nombre del cliente es requerido");
-      return;
-    }
-
-    createCustomerMutation.mutate({
-      code: code.trim(),
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      address: address.trim(),
-      creditLimit: parseFloat(creditLimit) || 0,
-      companyId: "company_1",
-      branchId: "branch_1",
+    createMutation.mutate({
+      code: form.code,
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      address: form.address,
+      creditLimit: parseFloat(form.creditLimit) || 0,
+      companyId,
+      branchId,
     });
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información del Cliente</Text>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.sectionTitle}>Información del Cliente</Text>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Código de Cliente <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={code}
-              onChangeText={setCode}
-              placeholder="CLI-003"
-              placeholderTextColor="#999"
-            />
-          </View>
+        <Text style={styles.label}>Código de Cliente *</Text>
+        <TextInput
+          style={styles.input}
+          value={form.code}
+          onChangeText={(text) => setForm({ ...form, code: text })}
+          placeholder="Ej: CLI-001"
+          editable={false}
+        />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Nombre de Cliente <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Nombre completo o empresa"
-              placeholderTextColor="#999"
-            />
-          </View>
+        <Text style={styles.label}>Nombre Completo *</Text>
+        <TextInput
+          style={styles.input}
+          value={form.name}
+          onChangeText={(text) => setForm({ ...form, name: text })}
+          placeholder="Nombre del cliente"
+        />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Correo Electrónico</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="cliente@email.com"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+        <Text style={styles.label}>Correo Electrónico *</Text>
+        <TextInput
+          style={styles.input}
+          value={form.email}
+          onChangeText={(text) => setForm({ ...form, email: text })}
+          placeholder="correo@ejemplo.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Celular</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="8868-8888"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-            />
-          </View>
+        <Text style={styles.label}>Teléfono *</Text>
+        <TextInput
+          style={styles.input}
+          value={form.phone}
+          onChangeText={(text) => setForm({ ...form, phone: text })}
+          placeholder="+34 123 456 789"
+          keyboardType="phone-pad"
+        />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Dirección</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Dirección completa"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-        </View>
+        <Text style={styles.label}>Dirección</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={form.address}
+          onChangeText={(text) => setForm({ ...form, address: text })}
+          placeholder="Dirección completa"
+          multiline
+          numberOfLines={3}
+        />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Límite de Crédito Aprobado</Text>
-
-          <View style={styles.field}>
-            <TextInput
-              style={styles.input}
-              value={creditLimit}
-              onChangeText={setCreditLimit}
-              placeholder="0.00"
-              placeholderTextColor="#999"
-              keyboardType="decimal-pad"
-            />
-          </View>
-        </View>
+        <Text style={styles.label}>Límite de Crédito</Text>
+        <TextInput
+          style={styles.input}
+          value={form.creditLimit}
+          onChangeText={(text) => setForm({ ...form, creditLimit: text })}
+          placeholder="0.00"
+          keyboardType="numeric"
+        />
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => router.back()}
-          disabled={createCustomerMutation.isPending}
-        >
+        <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
           <Text style={styles.cancelButtonText}>Cancelar</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[
-            styles.saveButton,
-            createCustomerMutation.isPending && styles.saveButtonDisabled,
-          ]}
+          style={styles.saveButton}
           onPress={handleSave}
-          disabled={createCustomerMutation.isPending}
+          disabled={createMutation.isPending}
         >
-          {createCustomerMutation.isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Guardar Cliente</Text>
-          )}
+          <Text style={styles.saveButtonText}>
+            {createMutation.isPending ? "Guardando..." : "Guardar Cliente"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -186,86 +151,70 @@ export default function NewCustomerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
-  scrollView: {
-    flex: 1,
+    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 16,
-    gap: 16,
+    flex: 1,
   },
-  section: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+  contentContainer: {
     padding: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700" as const,
-    color: "#000",
-    marginBottom: 16,
-  },
-  field: {
+    color: Colors.light.text,
     marginBottom: 16,
   },
   label: {
     fontSize: 14,
     fontWeight: "600" as const,
-    color: "#000",
+    color: Colors.light.text,
     marginBottom: 8,
-  },
-  required: {
-    color: "#FF3B30",
+    marginTop: 12,
   },
   input: {
-    height: 48,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#000",
+    padding: 12,
+    fontSize: 14,
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   textArea: {
-    height: 96,
-    paddingTop: 12,
+    height: 80,
     textAlignVertical: "top" as const,
   },
   footer: {
     flexDirection: "row" as const,
     padding: 16,
     gap: 12,
-    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
+    borderTopColor: Colors.light.border,
+    backgroundColor: Colors.light.cardBackground,
   },
   cancelButton: {
     flex: 1,
-    height: 48,
-    backgroundColor: "#F5F5F5",
+    padding: 16,
     borderRadius: 8,
+    backgroundColor: Colors.light.background,
     alignItems: "center" as const,
-    justifyContent: "center" as const,
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
-    color: "#666",
+    color: Colors.light.text,
   },
   saveButton: {
     flex: 1,
-    height: 48,
-    backgroundColor: "#007AFF",
+    padding: 16,
     borderRadius: 8,
+    backgroundColor: Colors.light.primary,
     alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
-    color: "#fff",
+    color: Colors.light.cardBackground,
   },
 });

@@ -14,6 +14,12 @@ export default function QuotesLayout() {
           title: "Cotizaciones",
         }}
       />
+      <Stack.Screen
+        name="[quoteId]"
+        options={{
+          title: "Detalle de Cotización",
+        }}
+      />
     </Stack>
   );
 }

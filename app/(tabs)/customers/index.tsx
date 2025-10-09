@@ -1,202 +1,125 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-} from "react-native";
-import { useState } from "react";
-import { trpc } from "@/lib/trpc";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from "react-native";
+import { Plus, Search, UserCircle, CreditCard, AlertCircle } from "lucide-react-native";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "expo-router";
-import { Search, Plus, Phone, Mail, MapPin } from "lucide-react-native";
+import { trpc } from "@/lib/trpc";
+import Colors from "@/constants/colors";
 
 export default function CustomersScreen() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const companyId = "company_1";
+  const branchId = "branch_1";
 
   const customersQuery = trpc.customers.getCustomers.useQuery({
-    companyId: "company_1",
-    branchId: "branch_1",
-    search,
+    companyId,
+    branchId,
+    search: searchQuery,
   });
 
   const customers = customersQuery.data || [];
 
-  const totalCustomers = customers.length;
-  const customersWithCredit = customers.filter((c) => c.creditCount > 0).length;
-  const totalDebt = customers.reduce((sum, c) => sum + c.currentDebt, 0);
-  const totalCreditLimit = customers.reduce((sum, c) => sum + c.creditLimit, 0);
+  const stats = useMemo(() => {
+    const totalCustomers = customers.length;
+    const withCredit = customers.filter((c) => c.currentDebt > 0).length;
+    const totalDebt = customers.reduce((sum, c) => sum + c.currentDebt, 0);
 
-  const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString("en-US", {
-      minimumFractionDigits: 3,
-      maximumFractionDigits: 3,
-    })}`;
-  };
+    return { totalCustomers, withCredit, totalDebt };
+  }, [customers]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Search size={20} color="#999" style={styles.searchIcon} />
+      <View style={styles.header}>
+        <View style={styles.searchContainer}>
+          <Search size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar clientes..."
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={Colors.light.textSecondary}
           />
         </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.totalCustomers}</Text>
+            <Text style={styles.statLabel}>Clientes</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValue, styles.warningText]}>{stats.withCredit}</Text>
+            <Text style={styles.statLabel}>Con Crédito</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValue, styles.dangerText]}>€{stats.totalDebt.toFixed(0)}</Text>
+            <Text style={styles.statLabel}>Deuda Total</Text>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => router.push("/customers/new")}
+          onPress={() => router.push("/(tabs)/customers/new")}
         >
-          <Plus size={24} color="#fff" />
+          <Plus size={20} color={Colors.light.cardBackground} />
+          <Text style={styles.addButtonText}>Nuevo Cliente</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{totalCustomers}</Text>
-          <Text style={styles.statLabel}>Clientes</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{customersWithCredit}</Text>
-          <Text style={styles.statLabel}>Con Deudas</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{formatCurrency(totalDebt)}</Text>
-          <Text style={styles.statLabel}>Total Deuda</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{formatCurrency(totalCreditLimit)}</Text>
-          <Text style={styles.statLabel}>Límite Total</Text>
-        </View>
-      </View>
-
-      {customersQuery.isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-        </View>
-      ) : (
-        <FlatList
-          data={customers}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({ item }) => {
-            const percentUsed =
-              item.creditLimit > 0
-                ? (item.currentDebt / item.creditLimit) * 100
-                : 0;
-
-            return (
-              <TouchableOpacity
-                style={styles.customerCard}
-                onPress={() => router.push(`/customers/${item.id}`)}
-              >
-                <View style={styles.customerHeader}>
-                  <Text style={styles.customerName}>{item.name}</Text>
-                  <Text style={styles.customerId}>ID: {item.code}</Text>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        {customersQuery.isLoading ? (
+          <Text style={styles.loadingText}>Cargando clientes...</Text>
+        ) : customers.length === 0 ? (
+          <View style={styles.emptyState}>
+            <UserCircle size={64} color={Colors.light.tabIconDefault} />
+            <Text style={styles.emptyText}>No hay clientes registrados</Text>
+            <Text style={styles.emptySubtext}>Agrega tu primer cliente para comenzar</Text>
+          </View>
+        ) : (
+          customers.map((customer) => (
+            <TouchableOpacity
+              key={customer.id}
+              style={styles.customerCard}
+              onPress={() => router.push(`/(tabs)/customers/${customer.id}`)}
+            >
+              <View style={styles.customerHeader}>
+                <View style={styles.customerIcon}>
+                  <UserCircle size={24} color={Colors.light.primary} />
                 </View>
-
                 <View style={styles.customerInfo}>
-                  <View style={styles.infoRow}>
-                    <Phone size={14} color="#666" />
-                    <Text style={styles.infoText}>{item.phone}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Mail size={14} color="#666" />
-                    <Text style={styles.infoText}>{item.email}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <MapPin size={14} color="#666" />
-                    <Text style={styles.infoText}>{item.address}</Text>
-                  </View>
+                  <Text style={styles.customerName}>{customer.name}</Text>
+                  <Text style={styles.customerCode}>{customer.code}</Text>
+                  <Text style={styles.customerContact}>{customer.email}</Text>
+                  <Text style={styles.customerContact}>{customer.phone}</Text>
+                </View>
+              </View>
+
+              <View style={styles.customerFooter}>
+                <View style={styles.creditInfo}>
+                  <CreditCard size={16} color={Colors.light.textSecondary} />
+                  <Text style={styles.creditLabel}>Límite de crédito</Text>
+                  <Text style={styles.creditValue}>€{customer.creditLimit.toFixed(2)}</Text>
                 </View>
 
-                {item.creditLimit > 0 && (
-                  <View style={styles.creditSection}>
-                    <View style={styles.creditHeader}>
-                      <Text style={styles.creditTitle}>Línea de Crédito</Text>
-                    </View>
-                    <View style={styles.creditAmounts}>
-                      <View style={styles.creditAmount}>
-                        <Text style={styles.creditLabel}>Límite</Text>
-                        <Text style={styles.creditValue}>
-                          {formatCurrency(item.creditLimit)}
-                        </Text>
-                      </View>
-                      <View style={styles.creditAmount}>
-                        <Text style={styles.creditLabel}>Deuda Actual</Text>
-                        <Text style={[styles.creditValue, styles.debtValue]}>
-                          {formatCurrency(item.currentDebt)}
-                        </Text>
-                      </View>
-                      <View style={styles.creditAmount}>
-                        <Text style={styles.creditLabel}>Disponible</Text>
-                        <Text style={[styles.creditValue, styles.availableValue]}>
-                          {formatCurrency(item.available)}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.progressBarContainer}>
-                      <View
-                        style={[
-                          styles.progressBar,
-                          {
-                            width: `${Math.min(percentUsed, 100)}%`,
-                            backgroundColor:
-                              percentUsed > 90
-                                ? "#FF3B30"
-                                : percentUsed > 70
-                                ? "#FF9500"
-                                : "#34C759",
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.percentText}>
-                      {percentUsed.toFixed(1)}% utilizado
-                    </Text>
+                {customer.currentDebt > 0 && (
+                  <View style={styles.debtInfo}>
+                    <AlertCircle size={16} color={Colors.light.danger} />
+                    <Text style={styles.debtLabel}>Deuda actual</Text>
+                    <Text style={styles.debtValue}>€{customer.currentDebt.toFixed(2)}</Text>
                   </View>
                 )}
 
-                {item.creditCount > 0 && (
-                  <View style={styles.actionsContainer}>
-                    <Text style={styles.clientSince}>
-                      Cliente desde: {new Date(item.createdAt).toLocaleDateString()}
-                    </Text>
-                    <View style={styles.actionButtons}>
-                      <TouchableOpacity
-                        style={styles.detailsButton}
-                        onPress={() => router.push(`/customers/${item.id}`)}
-                      >
-                        <Text style={styles.detailsButtonText}>Ver Detalles</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.paymentButton}
-                        onPress={() => router.push(`/customers/${item.id}`)}
-                      >
-                        <Text style={styles.paymentButtonText}>Aplicar Abono</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No hay clientes registrados</Text>
-              <Text style={styles.emptySubtext}>
-                Presiona el botón + para agregar uno
-              </Text>
-            </View>
-          }
-        />
-      )}
+                <View style={styles.availableInfo}>
+                  <Text style={styles.availableLabel}>Disponible</Text>
+                  <Text style={[styles.availableValue, customer.available < 0 && styles.negativeValue]}>
+                    €{customer.available.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -204,214 +127,194 @@ export default function CustomersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: Colors.light.background,
+  },
+  header: {
+    backgroundColor: Colors.light.cardBackground,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
   },
   searchContainer: {
     flexDirection: "row" as const,
-    padding: 16,
-    gap: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: "row" as const,
     alignItems: "center" as const,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
     paddingHorizontal: 12,
+    marginBottom: 16,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: "#000",
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+    height: 40,
+    fontSize: 14,
+    color: Colors.light.text,
   },
   statsContainer: {
     flexDirection: "row" as const,
-    padding: 16,
     gap: 12,
-    backgroundColor: "#fff",
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 12,
     alignItems: "center" as const,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "700" as const,
-    color: "#000",
+    color: Colors.light.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: "#666",
-    textAlign: "center" as const,
+    color: Colors.light.textSecondary,
   },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+  warningText: {
+    color: Colors.light.warning,
   },
-  listContainer: {
-    padding: 16,
-    gap: 16,
+  dangerText: {
+    color: Colors.light.danger,
   },
-  customerCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  customerHeader: {
-    marginBottom: 12,
-  },
-  customerName: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#000",
-    marginBottom: 4,
-  },
-  customerId: {
-    fontSize: 14,
-    color: "#666",
-  },
-  customerInfo: {
-    gap: 8,
-    marginBottom: 16,
-  },
-  infoRow: {
+  addButton: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
+    justifyContent: "center" as const,
+    backgroundColor: Colors.light.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
     gap: 8,
   },
-  infoText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  creditSection: {
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
-    paddingTop: 16,
-  },
-  creditHeader: {
-    marginBottom: 12,
-  },
-  creditTitle: {
-    fontSize: 14,
+  addButtonText: {
+    color: Colors.light.cardBackground,
+    fontSize: 16,
     fontWeight: "600" as const,
-    color: "#000",
   },
-  creditAmounts: {
-    flexDirection: "row" as const,
-    justifyContent: "space-between" as const,
-    marginBottom: 12,
-  },
-  creditAmount: {
+  content: {
     flex: 1,
   },
-  creditLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
+  contentContainer: {
+    padding: 16,
   },
-  creditValue: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#000",
-  },
-  debtValue: {
-    color: "#FF3B30",
-  },
-  availableValue: {
-    color: "#34C759",
-  },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: "#E5E5E5",
-    borderRadius: 3,
-    overflow: "hidden" as const,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: "100%",
-    borderRadius: 3,
-  },
-  percentText: {
-    fontSize: 12,
-    color: "#666",
+  loadingText: {
     textAlign: "center" as const,
+    color: Colors.light.textSecondary,
+    marginTop: 20,
   },
-  actionsContainer: {
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
-    paddingTop: 16,
-    marginTop: 16,
-  },
-  clientSince: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 12,
-  },
-  actionButtons: {
-    flexDirection: "row" as const,
-    gap: 12,
-  },
-  detailsButton: {
-    flex: 1,
-    height: 36,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
+  emptyState: {
     alignItems: "center" as const,
     justifyContent: "center" as const,
-  },
-  detailsButtonText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#007AFF",
-  },
-  paymentButton: {
-    flex: 1,
-    height: 36,
-    backgroundColor: "#34C759",
-    borderRadius: 8,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-  paymentButtonText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#fff",
-  },
-  emptyContainer: {
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    paddingVertical: 60,
+    paddingVertical: 64,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: "600" as const,
-    color: "#666",
-    marginBottom: 8,
+    color: Colors.light.text,
+    marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#999",
+    color: Colors.light.textSecondary,
+    marginTop: 8,
+  },
+  customerCard: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  customerHeader: {
+    flexDirection: "row" as const,
+    marginBottom: 12,
+  },
+  customerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.light.primary + "20",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginRight: 12,
+  },
+  customerInfo: {
+    flex: 1,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  customerCode: {
+    fontSize: 12,
+    color: Colors.light.primary,
+    fontWeight: "600" as const,
+    marginBottom: 4,
+  },
+  customerContact: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  customerFooter: {
+    gap: 8,
+  },
+  creditInfo: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+  },
+  creditLabel: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    flex: 1,
+  },
+  creditValue: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+  },
+  debtInfo: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+  },
+  debtLabel: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    flex: 1,
+  },
+  debtValue: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: Colors.light.danger,
+  },
+  availableInfo: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  availableLabel: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  availableValue: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
+  },
+  negativeValue: {
+    color: Colors.light.danger,
   },
 });

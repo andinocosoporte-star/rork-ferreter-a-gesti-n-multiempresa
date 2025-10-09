@@ -14,6 +14,12 @@ export default function SalesLayout() {
           title: "Ventas",
         }}
       />
+      <Stack.Screen
+        name="[saleId]"
+        options={{
+          title: "Detalle de Venta",
+        }}
+      />
     </Stack>
   );
 }

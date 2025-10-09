@@ -1,274 +1,203 @@
 import {
-  View,
-  Text,
   StyleSheet,
+  Text,
+  View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   TextInput,
   Modal,
+  Alert,
 } from "react-native";
-import { useState } from "react";
+import { UserCircle, CreditCard, DollarSign, Calendar, X } from "lucide-react-native";
+import React, { useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import { trpc } from "@/lib/trpc";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Phone, Mail, MapPin, ArrowLeft } from "lucide-react-native";
+import Colors from "@/constants/colors";
 
-export default function CustomerDetailsScreen() {
-  const router = useRouter();
+export default function CustomerDetailScreen() {
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentDescription, setPaymentDescription] = useState("");
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentDescription, setPaymentDescription] = useState<string>("");
 
-  const detailsQuery = trpc.customers.getCustomerDetails.useQuery({
+  const companyId = "company_1";
+  const branchId = "branch_1";
+
+  const customerQuery = trpc.customers.getCustomerDetails.useQuery({
     customerId: customerId || "",
   });
 
   const addPaymentMutation = trpc.customers.addPayment.useMutation({
     onSuccess: () => {
+      customerQuery.refetch();
       setShowPaymentModal(false);
       setPaymentAmount("");
       setPaymentDescription("");
-      detailsQuery.refetch();
-      Alert.alert("Éxito", "Abono aplicado correctamente");
+      Alert.alert("Éxito", "Pago registrado correctamente");
     },
     onError: (error) => {
       Alert.alert("Error", error.message);
     },
   });
 
-  const handleAddPayment = () => {
-    const amount = parseFloat(paymentAmount);
+  const customer = customerQuery.data?.customer;
+  const currentDebt = customerQuery.data?.currentDebt || 0;
+  const available = customerQuery.data?.available || 0;
+  const transactions = customerQuery.data?.transactions || [];
 
-    if (!amount || amount <= 0) {
-      Alert.alert("Error", "Ingrese un monto válido");
-      return;
-    }
-
-    if (!paymentDescription.trim()) {
-      Alert.alert("Error", "Ingrese una descripción");
-      return;
-    }
-
-    addPaymentMutation.mutate({
-      customerId: customerId || "",
-      amount,
-      description: paymentDescription.trim(),
-      companyId: "company_1",
-      branchId: "branch_1",
-      createdBy: "user_1",
-    });
-  };
-
-  const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString("en-US", {
-      minimumFractionDigits: 3,
-      maximumFractionDigits: 3,
-    })}`;
-  };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  if (detailsQuery.isLoading) {
+  if (customerQuery.isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>Cargando detalles del cliente...</Text>
       </View>
     );
   }
 
-  if (!detailsQuery.data) {
+  if (!customer) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={styles.container}>
         <Text style={styles.errorText}>Cliente no encontrado</Text>
       </View>
     );
   }
 
-  const { customer, currentDebt, available, transactions, stats } = detailsQuery.data;
-  const percentUsed =
-    customer.creditLimit > 0 ? (currentDebt / customer.creditLimit) * 100 : 0;
+  const handleAddPayment = () => {
+    const amount = parseFloat(paymentAmount);
+    if (!amount || amount <= 0) {
+      Alert.alert("Error", "Por favor ingresa un monto válido");
+      return;
+    }
+
+    if (amount > currentDebt) {
+      Alert.alert("Error", "El monto no puede ser mayor a la deuda actual");
+      return;
+    }
+
+    addPaymentMutation.mutate({
+      customerId: customer.id,
+      amount,
+      description: paymentDescription || "Abono a cuenta",
+      companyId,
+      branchId,
+      createdBy: "user_1",
+    });
+  };
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Detalles del Cliente</Text>
-        </View>
-
-        <View style={styles.customerCard}>
-          <Text style={styles.customerName}>{customer.name}</Text>
-          <Text style={styles.customerId}>{customer.code}</Text>
-
-          <View style={styles.contactInfo}>
-            <View style={styles.contactRow}>
-              <Phone size={16} color="#666" />
-              <Text style={styles.contactText}>{customer.phone}</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Mail size={16} color="#666" />
-              <Text style={styles.contactText}>{customer.email}</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <MapPin size={16} color="#666" />
-              <Text style={styles.contactText}>{customer.address}</Text>
-            </View>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.customerHeader}>
+          <View style={styles.customerIcon}>
+            <UserCircle size={48} color={Colors.light.primary} />
           </View>
-
-          <Text style={styles.clientSince}>
-            Cliente desde: {formatDate(customer.createdAt)}
-          </Text>
+          <View style={styles.customerInfo}>
+            <Text style={styles.customerName}>{customer.name}</Text>
+            <Text style={styles.customerCode}>{customer.code}</Text>
+            <Text style={styles.customerContact}>{customer.email}</Text>
+            <Text style={styles.customerContact}>{customer.phone}</Text>
+            {customer.address && (
+              <Text style={styles.customerAddress}>{customer.address}</Text>
+            )}
+          </View>
         </View>
 
-        {customer.creditLimit > 0 && (
+        <View style={styles.creditSection}>
           <View style={styles.creditCard}>
             <View style={styles.creditHeader}>
-              <Text style={styles.creditTitle}>Línea de Crédito</Text>
+              <CreditCard size={24} color={Colors.light.primary} />
+              <Text style={styles.creditTitle}>Estado de Cuenta</Text>
             </View>
 
-            <View style={styles.creditAmounts}>
-              <View style={styles.creditAmount}>
-                <Text style={styles.creditLabel}>Límite</Text>
-                <Text style={styles.creditValue}>
-                  {formatCurrency(customer.creditLimit)}
-                </Text>
-              </View>
-              <View style={styles.creditAmount}>
-                <Text style={styles.creditLabel}>Deuda Actual</Text>
-                <Text style={[styles.creditValue, styles.debtValue]}>
-                  {formatCurrency(currentDebt)}
-                </Text>
-              </View>
-              <View style={styles.creditAmount}>
-                <Text style={styles.creditLabel}>Disponible</Text>
-                <Text style={[styles.creditValue, styles.availableValue]}>
-                  {formatCurrency(available)}
-                </Text>
-              </View>
+            <View style={styles.creditRow}>
+              <Text style={styles.creditLabel}>Límite de crédito</Text>
+              <Text style={styles.creditValue}>€{customer.creditLimit.toFixed(2)}</Text>
             </View>
 
-            <View style={styles.progressBarContainer}>
-              <View
-                style={[
-                  styles.progressBar,
-                  {
-                    width: `${Math.min(percentUsed, 100)}%`,
-                    backgroundColor:
-                      percentUsed > 90
-                        ? "#FF3B30"
-                        : percentUsed > 70
-                        ? "#FF9500"
-                        : "#34C759",
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.percentText}>
-              {percentUsed.toFixed(1)}% utilizado
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>Estado de Créditos</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.active}</Text>
-              <Text style={styles.statLabel}>Activos</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.paid}</Text>
-              <Text style={styles.statLabel}>Pagados</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, styles.overdueNumber]}>
-                {stats.overdue}
+            <View style={styles.creditRow}>
+              <Text style={styles.creditLabel}>Deuda actual</Text>
+              <Text style={[styles.creditValue, styles.debtValue]}>
+                €{currentDebt.toFixed(2)}
               </Text>
-              <Text style={styles.statLabel}>Vencidos</Text>
             </View>
+
+            <View style={[styles.creditRow, styles.creditRowHighlight]}>
+              <Text style={styles.creditLabelBold}>Crédito disponible</Text>
+              <Text
+                style={[
+                  styles.creditValueBold,
+                  available < 0 && styles.negativeValue,
+                ]}
+              >
+                €{available.toFixed(2)}
+              </Text>
+            </View>
+
+            {currentDebt > 0 && (
+              <TouchableOpacity
+                style={styles.paymentButton}
+                onPress={() => setShowPaymentModal(true)}
+              >
+                <DollarSign size={20} color={Colors.light.cardBackground} />
+                <Text style={styles.paymentButtonText}>Registrar Pago</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
-        {currentDebt > 0 && (
-          <View style={styles.activeCreditsCard}>
-            <Text style={styles.activeCreditsTitle}>Créditos Activos</Text>
-            <View style={styles.activeCreditsAmount}>
-              <Text style={styles.activeCreditsValue}>
-                {formatCurrency(currentDebt)}
-              </Text>
-              <Text style={styles.activeCreditsLabel}>Activo</Text>
-            </View>
-          </View>
-        )}
+        <View style={styles.transactionsSection}>
+          <Text style={styles.sectionTitle}>Historial de Transacciones</Text>
 
-        <View style={styles.transactionsCard}>
-          <Text style={styles.transactionsTitle}>Historial de Transacciones</Text>
           {transactions.length === 0 ? (
-            <Text style={styles.noTransactions}>
-              No hay transacciones registradas
-            </Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No hay transacciones registradas</Text>
+            </View>
           ) : (
             transactions.map((transaction) => (
-              <View key={transaction.id} style={styles.transactionItem}>
+              <View key={transaction.id} style={styles.transactionCard}>
                 <View style={styles.transactionHeader}>
                   <View
                     style={[
-                      styles.transactionBadge,
-                      transaction.type === "sale"
-                        ? styles.saleBadge
-                        : styles.paymentBadge,
+                      styles.transactionIcon,
+                      transaction.type === "payment"
+                        ? styles.paymentIcon
+                        : styles.saleIcon,
                     ]}
                   >
+                    {transaction.type === "payment" ? (
+                      <DollarSign size={16} color={Colors.light.success} />
+                    ) : (
+                      <CreditCard size={16} color={Colors.light.danger} />
+                    )}
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionDescription}>
+                      {transaction.description}
+                    </Text>
+                    <View style={styles.transactionDate}>
+                      <Calendar size={12} color={Colors.light.textSecondary} />
+                      <Text style={styles.transactionDateText}>
+                        {new Date(transaction.date).toLocaleDateString("es-ES", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.transactionAmounts}>
                     <Text
                       style={[
-                        styles.transactionBadgeText,
-                        transaction.type === "sale"
-                          ? styles.saleBadgeText
-                          : styles.paymentBadgeText,
+                        styles.transactionAmount,
+                        transaction.type === "payment"
+                          ? styles.paymentAmount
+                          : styles.saleAmount,
                       ]}
                     >
-                      {transaction.type === "sale" ? "Venta" : "Abono"}
+                      {transaction.type === "payment" ? "-" : "+"}€
+                      {transaction.amount.toFixed(2)}
                     </Text>
-                  </View>
-                  <Text style={styles.transactionDate}>
-                    {formatDate(transaction.date)}
-                  </Text>
-                </View>
-                <Text style={styles.transactionDescription}>
-                  {transaction.description}
-                </Text>
-                <View style={styles.transactionAmounts}>
-                  <View style={styles.transactionAmountItem}>
-                    <Text style={styles.transactionAmountLabel}>Monto</Text>
-                    <Text
-                      style={[
-                        styles.transactionAmountValue,
-                        transaction.type === "sale"
-                          ? styles.debtValue
-                          : styles.availableValue,
-                      ]}
-                    >
-                      {transaction.type === "sale" ? "+" : "-"}
-                      {formatCurrency(transaction.amount)}
-                    </Text>
-                  </View>
-                  <View style={styles.transactionAmountItem}>
-                    <Text style={styles.transactionAmountLabel}>Saldo</Text>
-                    <Text style={styles.transactionAmountValue}>
-                      {formatCurrency(transaction.balance)}
+                    <Text style={styles.transactionBalance}>
+                      Saldo: €{transaction.balance.toFixed(2)}
                     </Text>
                   </View>
                 </View>
@@ -278,76 +207,56 @@ export default function CustomerDetailsScreen() {
         </View>
       </ScrollView>
 
-      {currentDebt > 0 && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.paymentButton}
-            onPress={() => setShowPaymentModal(true)}
-          >
-            <Text style={styles.paymentButtonText}>Aplicar Abono</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <Modal
-        visible={showPaymentModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPaymentModal(false)}
-      >
+      <Modal visible={showPaymentModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Aplicar Abono</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Registrar Pago</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
 
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Monto del Abono</Text>
+            <View style={styles.modalBody}>
+              <Text style={styles.debtInfo}>
+                Deuda actual: €{currentDebt.toFixed(2)}
+              </Text>
+
+              <Text style={styles.label}>Monto del Pago *</Text>
               <TextInput
-                style={styles.modalInput}
+                style={styles.input}
                 value={paymentAmount}
                 onChangeText={setPaymentAmount}
                 placeholder="0.00"
-                placeholderTextColor="#999"
-                keyboardType="decimal-pad"
+                keyboardType="numeric"
               />
-              <Text style={styles.modalHint}>
-                Deuda actual: {formatCurrency(currentDebt)}
-              </Text>
-            </View>
 
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Descripción</Text>
+              <Text style={styles.label}>Descripción</Text>
               <TextInput
-                style={[styles.modalInput, styles.modalTextArea]}
+                style={[styles.input, styles.textArea]}
                 value={paymentDescription}
                 onChangeText={setPaymentDescription}
-                placeholder="Ej: Abono a cuenta"
-                placeholderTextColor="#999"
+                placeholder="Abono a cuenta"
                 multiline
                 numberOfLines={3}
               />
             </View>
 
-            <View style={styles.modalButtons}>
+            <View style={styles.modalFooter}>
               <TouchableOpacity
-                style={styles.modalCancelButton}
+                style={styles.cancelButton}
                 onPress={() => setShowPaymentModal(false)}
-                disabled={addPaymentMutation.isPending}
               >
-                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.modalSaveButton,
-                  addPaymentMutation.isPending && styles.modalSaveButtonDisabled,
-                ]}
+                style={styles.saveButton}
                 onPress={handleAddPayment}
                 disabled={addPaymentMutation.isPending}
               >
-                {addPaymentMutation.isPending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.modalSaveButtonText}>Aplicar</Text>
-                )}
+                <Text style={styles.saveButtonText}>
+                  {addPaymentMutation.isPending ? "Guardando..." : "Registrar Pago"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -360,300 +269,229 @@ export default function CustomerDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: Colors.light.background,
   },
-  loadingContainer: {
+  content: {
     flex: 1,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
   },
-  errorContainer: {
-    flex: 1,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+  contentContainer: {
+    padding: 16,
+  },
+  loadingText: {
+    textAlign: "center" as const,
+    color: Colors.light.textSecondary,
+    marginTop: 20,
   },
   errorText: {
-    fontSize: 16,
-    color: "#666",
+    textAlign: "center" as const,
+    color: Colors.light.danger,
+    marginTop: 20,
   },
-  scrollView: {
+  customerHeader: {
+    flexDirection: "row" as const,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  customerIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.light.primary + "20",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginRight: 16,
+  },
+  customerInfo: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#000",
-  },
-  customerCard: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-  },
   customerName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700" as const,
-    color: "#000",
+    color: Colors.light.text,
     marginBottom: 4,
   },
-  customerId: {
+  customerCode: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
+    color: Colors.light.primary,
+    fontWeight: "600" as const,
+    marginBottom: 8,
   },
-  contactInfo: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  contactRow: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 8,
-  },
-  contactText: {
+  customerContact: {
     fontSize: 14,
-    color: "#666",
+    color: Colors.light.textSecondary,
+    marginBottom: 2,
   },
-  clientSince: {
-    fontSize: 12,
-    color: "#999",
+  customerAddress: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+  },
+  creditSection: {
+    marginBottom: 24,
   },
   creditCard: {
-    backgroundColor: "#fff",
-    margin: 16,
-    padding: 20,
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 12,
+    padding: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   creditHeader: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
     marginBottom: 16,
+    gap: 8,
   },
   creditTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700" as const,
-    color: "#000",
+    color: Colors.light.text,
   },
-  creditAmounts: {
+  creditRow: {
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
-    marginBottom: 16,
+    alignItems: "center" as const,
+    paddingVertical: 8,
   },
-  creditAmount: {
-    flex: 1,
+  creditRowHighlight: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    marginTop: 8,
+    paddingTop: 12,
   },
   creditLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
+    fontSize: 14,
+    color: Colors.light.textSecondary,
   },
   creditValue: {
     fontSize: 16,
+    fontWeight: "600" as const,
+    color: Colors.light.text,
+  },
+  creditLabelBold: {
+    fontSize: 16,
     fontWeight: "700" as const,
-    color: "#000",
+    color: Colors.light.text,
+  },
+  creditValueBold: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: Colors.light.success,
   },
   debtValue: {
-    color: "#FF3B30",
+    color: Colors.light.danger,
   },
-  availableValue: {
-    color: "#34C759",
+  negativeValue: {
+    color: Colors.light.danger,
   },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: "#E5E5E5",
-    borderRadius: 4,
-    overflow: "hidden" as const,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  percentText: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center" as const,
-  },
-  statsCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statsTitle: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#000",
-    marginBottom: 16,
-  },
-  statsRow: {
+  paymentButton: {
     flexDirection: "row" as const,
-    justifyContent: "space-around" as const,
-  },
-  statItem: {
     alignItems: "center" as const,
-  },
-  statNumber: {
-    fontSize: 32,
-    fontWeight: "700" as const,
-    color: "#000",
-    marginBottom: 4,
-  },
-  overdueNumber: {
-    color: "#FF3B30",
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "#666",
-  },
-  activeCreditsCard: {
-    backgroundColor: "#FFF3CD",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: "center" as const,
-  },
-  activeCreditsTitle: {
-    fontSize: 14,
-    color: "#856404",
-    marginBottom: 8,
-  },
-  activeCreditsAmount: {
-    alignItems: "center" as const,
-  },
-  activeCreditsValue: {
-    fontSize: 28,
-    fontWeight: "700" as const,
-    color: "#856404",
-    marginBottom: 4,
-  },
-  activeCreditsLabel: {
-    fontSize: 14,
-    color: "#856404",
-  },
-  transactionsCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  transactionsTitle: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#000",
-    marginBottom: 16,
-  },
-  noTransactions: {
-    fontSize: 14,
-    color: "#999",
-    textAlign: "center" as const,
-    paddingVertical: 20,
-  },
-  transactionItem: {
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
-    paddingTop: 16,
+    justifyContent: "center" as const,
+    backgroundColor: Colors.light.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
     marginTop: 16,
+    gap: 8,
+  },
+  paymentButtonText: {
+    color: Colors.light.cardBackground,
+    fontSize: 16,
+    fontWeight: "600" as const,
+  },
+  transactionsSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginBottom: 12,
+  },
+  emptyState: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 12,
+    padding: 32,
+    alignItems: "center" as const,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+  },
+  transactionCard: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   transactionHeader: {
     flexDirection: "row" as const,
-    justifyContent: "space-between" as const,
     alignItems: "center" as const,
-    marginBottom: 8,
   },
-  transactionBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+  transactionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginRight: 12,
   },
-  saleBadge: {
-    backgroundColor: "#FFE5E5",
+  paymentIcon: {
+    backgroundColor: Colors.light.success + "20",
   },
-  paymentBadge: {
-    backgroundColor: "#E5F5E5",
+  saleIcon: {
+    backgroundColor: Colors.light.danger + "20",
   },
-  transactionBadgeText: {
-    fontSize: 12,
-    fontWeight: "600" as const,
-  },
-  saleBadgeText: {
-    color: "#FF3B30",
-  },
-  paymentBadgeText: {
-    color: "#34C759",
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: "#666",
+  transactionInfo: {
+    flex: 1,
   },
   transactionDescription: {
     fontSize: 14,
-    color: "#000",
-    marginBottom: 12,
-  },
-  transactionAmounts: {
-    flexDirection: "row" as const,
-    justifyContent: "space-between" as const,
-  },
-  transactionAmountItem: {
-    flex: 1,
-  },
-  transactionAmountLabel: {
-    fontSize: 12,
-    color: "#666",
+    fontWeight: "600" as const,
+    color: Colors.light.text,
     marginBottom: 4,
   },
-  transactionAmountValue: {
+  transactionDate: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+  },
+  transactionDateText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  transactionAmounts: {
+    alignItems: "flex-end" as const,
+  },
+  transactionAmount: {
     fontSize: 16,
     fontWeight: "700" as const,
-    color: "#000",
+    marginBottom: 2,
   },
-  footer: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
+  paymentAmount: {
+    color: Colors.light.success,
   },
-  paymentButton: {
-    height: 48,
-    backgroundColor: "#34C759",
-    borderRadius: 8,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+  saleAmount: {
+    color: Colors.light.danger,
   },
-  paymentButtonText: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#fff",
+  transactionBalance: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
   },
   modalOverlay: {
     flex: 1,
@@ -661,75 +499,83 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end" as const,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.cardBackground,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
     padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700" as const,
-    color: "#000",
-    marginBottom: 20,
+    color: Colors.light.text,
   },
-  modalField: {
-    marginBottom: 20,
+  modalBody: {
+    padding: 20,
   },
-  modalLabel: {
+  debtInfo: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: Colors.light.danger,
+    marginBottom: 16,
+    textAlign: "center" as const,
+  },
+  label: {
     fontSize: 14,
     fontWeight: "600" as const,
-    color: "#000",
+    color: Colors.light.text,
     marginBottom: 8,
+    marginTop: 12,
   },
-  modalInput: {
-    height: 48,
-    backgroundColor: "#F5F5F5",
+  input: {
+    backgroundColor: Colors.light.background,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#000",
+    padding: 12,
+    fontSize: 14,
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
-  modalTextArea: {
-    height: 96,
-    paddingTop: 12,
+  textArea: {
+    height: 80,
     textAlignVertical: "top" as const,
   },
-  modalHint: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-  },
-  modalButtons: {
+  modalFooter: {
     flexDirection: "row" as const,
+    padding: 20,
     gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
   },
-  modalCancelButton: {
+  cancelButton: {
     flex: 1,
-    height: 48,
-    backgroundColor: "#F5F5F5",
+    padding: 16,
     borderRadius: 8,
+    backgroundColor: Colors.light.background,
     alignItems: "center" as const,
-    justifyContent: "center" as const,
   },
-  modalCancelButtonText: {
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
-    color: "#666",
+    color: Colors.light.text,
   },
-  modalSaveButton: {
+  saveButton: {
     flex: 1,
-    height: 48,
-    backgroundColor: "#34C759",
+    padding: 16,
     borderRadius: 8,
+    backgroundColor: Colors.light.primary,
     alignItems: "center" as const,
-    justifyContent: "center" as const,
   },
-  modalSaveButtonDisabled: {
-    opacity: 0.5,
-  },
-  modalSaveButtonText: {
+  saveButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
-    color: "#fff",
+    color: Colors.light.cardBackground,
   },
 });
