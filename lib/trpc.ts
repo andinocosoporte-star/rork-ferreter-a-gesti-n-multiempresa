@@ -10,9 +10,8 @@ const getBaseUrl = () => {
   
   if (!baseUrl) {
     console.error("[tRPC] EXPO_PUBLIC_RORK_API_BASE_URL is not set");
-    throw new Error(
-      "No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL"
-    );
+    console.error("[tRPC] Please create a .env file with EXPO_PUBLIC_RORK_API_BASE_URL=your-vercel-url");
+    return "";
   }
   
   console.log("[tRPC] Base URL:", baseUrl);
@@ -31,9 +30,13 @@ export const trpcClient = trpc.createClient({
       },
       fetch: async (url, options) => {
         try {
+          const baseUrl = getBaseUrl();
+          if (!baseUrl) {
+            throw new Error("Backend URL no configurado. Por favor configura EXPO_PUBLIC_RORK_API_BASE_URL en tu archivo .env");
+          }
+          
           console.log("[tRPC] Making request to:", url);
           console.log("[tRPC] Request method:", options?.method);
-          console.log("[tRPC] Request headers:", options?.headers);
           
           const response = await fetch(url, {
             ...options,
@@ -56,7 +59,6 @@ export const trpcClient = trpc.createClient({
           console.error("[tRPC] Network error:", error);
           if (error instanceof Error) {
             console.error("[tRPC] Error message:", error.message);
-            console.error("[tRPC] Error stack:", error.stack);
           }
           throw error;
         }

@@ -33,20 +33,27 @@ export default function LoginScreen() {
   }, []);
 
   const checkBackendStatus = async (url: string) => {
-    if (url === "No configurado") {
+    if (url === "No configurado" || !url) {
       setBackendStatus("offline");
       return;
     }
 
     try {
       console.log("[Login] Checking backend status at:", url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const response = await fetch(`${url}/api`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       console.log("[Login] Backend status response:", response.status);
+      
       if (response.ok) {
         setBackendStatus("online");
       } else {
@@ -93,7 +100,14 @@ export default function LoginScreen() {
           {backendStatus === "offline" && (
             <View style={styles.statusBanner}>
               <AlertCircle size={16} color="#fff" />
-              <Text style={styles.statusText}>Servidor no disponible</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statusText}>Servidor no disponible</Text>
+                <Text style={styles.statusSubtext}>
+                  {backendUrl === "No configurado" || !backendUrl
+                    ? "URL del backend no configurada"
+                    : `No se puede conectar a: ${backendUrl}`}
+                </Text>
+              </View>
             </View>
           )}
           
@@ -322,5 +336,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600" as const,
+  },
+  statusSubtext: {
+    color: "#fff",
+    fontSize: 11,
+    marginTop: 2,
+    opacity: 0.9,
   },
 });
