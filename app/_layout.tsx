@@ -6,32 +6,51 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActivityIndicator, View } from "react-native";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = React.useState(false);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isNavigating) return;
 
     const inAuthGroup = segments[0] === "(tabs)";
 
     if (!isAuthenticated && inAuthGroup) {
+      setIsNavigating(true);
       router.replace("/login");
-    } else if (isAuthenticated && !inAuthGroup) {
+      setTimeout(() => setIsNavigating(false), 100);
+    } else if (isAuthenticated && !inAuthGroup && segments[0] !== "login" && segments[0] !== "register") {
+      setIsNavigating(true);
       router.replace("/(tabs)/(home)");
+      setTimeout(() => setIsNavigating(false), 100);
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+  }, [isAuthenticated, isLoading, segments]);
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -52,14 +71,16 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <GestureHandlerRootView>
-            <RootLayoutNav />
-          </GestureHandlerRootView>
-        </AuthProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <ErrorBoundary>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <GestureHandlerRootView>
+              <RootLayoutNav />
+            </GestureHandlerRootView>
+          </AuthProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
+    </ErrorBoundary>
   );
 }

@@ -26,7 +26,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const currentUserQuery = trpc.auth.getCurrentUser.useQuery(
     { token: token || "" },
-    { enabled: !!token }
+    { 
+      enabled: !!token,
+      retry: 1,
+      retryDelay: 1000,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    }
   );
 
   const loginMutation = trpc.auth.login.useMutation();
@@ -41,10 +48,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     if (currentUserQuery.data) {
       setUser(currentUserQuery.data);
       setIsLoading(false);
-    } else if (currentUserQuery.isError || (token && !currentUserQuery.isLoading && !currentUserQuery.data)) {
+    } else if (currentUserQuery.isError) {
+      console.error("[AuthContext] Error loading user:", currentUserQuery.error);
       setToken(null);
       setUser(null);
-      AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+      AsyncStorage.removeItem(AUTH_TOKEN_KEY).catch(err => 
+        console.error("[AuthContext] Error removing token:", err)
+      );
+      setIsLoading(false);
+    } else if (token && !currentUserQuery.isLoading && !currentUserQuery.data) {
+      console.log("[AuthContext] Token exists but no user data, clearing session");
+      setToken(null);
+      setUser(null);
+      AsyncStorage.removeItem(AUTH_TOKEN_KEY).catch(err => 
+        console.error("[AuthContext] Error removing token:", err)
+      );
       setIsLoading(false);
     } else if (!token) {
       setIsLoading(false);
