@@ -20,6 +20,10 @@ import { createCustomerProcedure } from "./routes/customers/create-customer/rout
 import { getNextCustomerCodeProcedure } from "./routes/customers/get-next-code/route";
 import { getCustomerDetailsProcedure } from "./routes/customers/get-customer-details/route";
 import { addPaymentProcedure } from "./routes/customers/add-payment/route";
+import { loginProcedure } from "./routes/auth/login/route";
+import { registerProcedure } from "./routes/auth/register/route";
+import { logoutProcedure } from "./routes/auth/logout/route";
+import { getCurrentUserProcedure } from "./routes/auth/get-current-user/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -52,6 +56,12 @@ export const appRouter = createTRPCRouter({
     getNextCode: getNextCustomerCodeProcedure,
     getCustomerDetails: getCustomerDetailsProcedure,
     addPayment: addPaymentProcedure,
+  }),
+  auth: createTRPCRouter({
+    login: loginProcedure,
+    register: registerProcedure,
+    logout: logoutProcedure,
+    getCurrentUser: getCurrentUserProcedure,
   }),
 });
 

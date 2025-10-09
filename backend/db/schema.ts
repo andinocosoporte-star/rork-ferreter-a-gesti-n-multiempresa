@@ -155,6 +155,7 @@ export type Role = {
 export type User = {
   id: string;
   email: string;
+  password: string;
   name: string;
   phone: string;
   roleId: string;
@@ -163,6 +164,14 @@ export type User = {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AuthSession = {
+  id: string;
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
 };
 
 export type InMemoryDB = {
@@ -175,6 +184,7 @@ export type InMemoryDB = {
   branches: Branch[];
   roles: Role[];
   users: User[];
+  authSessions: AuthSession[];
 };
 
 export const db: InMemoryDB = {
@@ -1113,6 +1123,7 @@ export const db: InMemoryDB = {
     {
       id: "user_1",
       email: "admin@ferreteriaeltornillo.com",
+      password: "admin123",
       name: "Carlos Martínez",
       phone: "7890-1234",
       roleId: "role_1",
@@ -1125,6 +1136,7 @@ export const db: InMemoryDB = {
     {
       id: "user_2",
       email: "vendedor1@ferreteriaeltornillo.com",
+      password: "vendedor123",
       name: "María González",
       phone: "7890-5678",
       roleId: "role_2",
@@ -1137,6 +1149,7 @@ export const db: InMemoryDB = {
     {
       id: "user_3",
       email: "almacen@ferreteriaeltornillo.com",
+      password: "almacen123",
       name: "José Ramírez",
       phone: "7890-9012",
       roleId: "role_3",
@@ -1147,4 +1160,5 @@ export const db: InMemoryDB = {
       updatedAt: new Date("2024-02-01"),
     },
   ],
+  authSessions: [],
 };

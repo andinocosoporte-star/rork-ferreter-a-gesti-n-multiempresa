@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from "rea
 import { Building2, MapPin, Users, UserCog, LogOut, ChevronRight, UserCircle } from "lucide-react-native";
 import React from "react";
 import { useRouter } from "expo-router";
-
+import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 
 interface SettingItem {
@@ -15,6 +15,7 @@ interface SettingItem {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { logout, user } = useAuth();
   
   const handleLogout = () => {
     Alert.alert(
@@ -28,8 +29,8 @@ export default function SettingsScreen() {
         {
           text: "Cerrar Sesión",
           style: "destructive",
-          onPress: () => {
-            console.log("Sesión cerrada");
+          onPress: async () => {
+            await logout();
           },
         },
       ]
@@ -40,7 +41,7 @@ export default function SettingsScreen() {
     {
       id: "company",
       title: "Mi Empresa",
-      subtitle: "Ferretería El Tornillo",
+      subtitle: user?.companyName || "Ferretería El Tornillo",
       icon: <Building2 size={24} color={Colors.light.primary} />,
       onPress: () => console.log("Company settings"),
     },
@@ -94,6 +95,18 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.userInfo}>
+        <View style={styles.userAvatar}>
+          <UserCircle size={48} color={Colors.light.primary} />
+        </View>
+        <Text style={styles.userName}>{user?.name || "Usuario"}</Text>
+        <Text style={styles.userEmail}>{user?.email || ""}</Text>
+        <View style={styles.userRole}>
+          <Text style={styles.userRoleText}>{user?.roleName || ""}</Text>
+        </View>
+      </View>
+
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Empresa</Text>
         <View style={styles.card}>
@@ -130,6 +143,47 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+  },
+  userInfo: {
+    alignItems: "center" as const,
+    paddingVertical: 24,
+    marginBottom: 16,
+  },
+  userAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.light.cardBackground,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: "700" as const,
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    marginBottom: 8,
+  },
+  userRole: {
+    backgroundColor: Colors.light.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  userRoleText: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: "#fff",
   },
   section: {
     marginBottom: 24,
