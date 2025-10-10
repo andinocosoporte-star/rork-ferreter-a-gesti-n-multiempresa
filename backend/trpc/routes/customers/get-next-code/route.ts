@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const getNextCustomerCodeProcedure = publicProcedure
@@ -9,14 +9,16 @@ export const getNextCustomerCodeProcedure = publicProcedure
       branchId: z.string(),
     })
   )
-  .query(({ input }) => {
+  .query(async ({ input }) => {
     console.log("[getNextCustomerCode] Input:", input);
 
-    const customers = db.customers.filter(
-      (c) => c.companyId === input.companyId && c.branchId === input.branchId
-    );
+    const { data: customers } = await supabase
+      .from("customers")
+      .select("code")
+      .eq("company_id", input.companyId)
+      .eq("branch_id", input.branchId);
 
-    if (customers.length === 0) {
+    if (!customers || customers.length === 0) {
       return "CLI-0001";
     }
 

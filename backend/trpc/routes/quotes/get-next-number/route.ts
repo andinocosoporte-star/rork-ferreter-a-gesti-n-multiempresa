@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const getNextQuoteNumberProcedure = publicProcedure
@@ -9,19 +9,21 @@ export const getNextQuoteNumberProcedure = publicProcedure
       branchId: z.string(),
     })
   )
-  .query(({ input }) => {
+  .query(async ({ input }) => {
     console.log("[getNextQuoteNumber] Input:", input);
 
-    const quotes = db.quotes.filter(
-      (q) => q.companyId === input.companyId && q.branchId === input.branchId
-    );
+    const { data: quotes } = await supabase
+      .from("quotes")
+      .select("quote_number")
+      .eq("company_id", input.companyId)
+      .eq("branch_id", input.branchId);
 
-    if (quotes.length === 0) {
+    if (!quotes || quotes.length === 0) {
       return "COT-00000001";
     }
 
     const numbers = quotes
-      .map((q) => q.quoteNumber)
+      .map((q) => q.quote_number)
       .filter((num) => num.startsWith("COT-"))
       .map((num) => {
         const parts = num.split("-");

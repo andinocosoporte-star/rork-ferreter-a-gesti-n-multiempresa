@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const createCustomerProcedure = publicProcedure
@@ -15,37 +15,54 @@ export const createCustomerProcedure = publicProcedure
       branchId: z.string(),
     })
   )
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     console.log("[createCustomer] Input:", input);
 
-    const existingCode = db.customers.find(
-      (c) =>
-        c.code === input.code &&
-        c.companyId === input.companyId &&
-        c.branchId === input.branchId
-    );
+    const { data: existingCode } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("code", input.code)
+      .eq("company_id", input.companyId)
+      .eq("branch_id", input.branchId)
+      .single();
 
     if (existingCode) {
       throw new Error("Ya existe un cliente con este código");
     }
 
-    const newCustomer = {
-      id: `customer-${Date.now()}-${Math.random()}`,
-      code: input.code,
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      address: input.address,
-      creditLimit: input.creditLimit,
-      companyId: input.companyId,
-      branchId: input.branchId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    const { data: customer, error } = await supabase
+      .from("customers")
+      .insert({
+        code: input.code,
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        address: input.address,
+        credit_limit: input.creditLimit,
+        company_id: input.companyId,
+        branch_id: input.branchId,
+      })
+      .select()
+      .single();
+
+    if (error || !customer) {
+      console.error("[createCustomer] Error:", error);
+      throw new Error("Error al crear el cliente");
+    }
+
+    console.log("[createCustomer] Customer created:", customer.id);
+
+    return {
+      id: customer.id,
+      code: customer.code,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+      creditLimit: customer.credit_limit,
+      companyId: customer.company_id,
+      branchId: customer.branch_id,
+      createdAt: new Date(customer.created_at),
+      updatedAt: new Date(customer.updated_at),
     };
-
-    db.customers.push(newCustomer);
-
-    console.log("[createCustomer] Customer created:", newCustomer.id);
-
-    return newCustomer;
   });

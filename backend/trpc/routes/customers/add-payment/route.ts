@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const addPaymentProcedure = publicProcedure
@@ -13,21 +13,28 @@ export const addPaymentProcedure = publicProcedure
       createdBy: z.string(),
     })
   )
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     console.log("[addPayment] Input:", input);
 
-    const customer = db.customers.find((c) => c.id === input.customerId);
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("id", input.customerId)
+      .single();
 
-    if (!customer) {
+    if (customerError || !customer) {
       throw new Error("Cliente no encontrado");
     }
 
-    const transactions = db.creditTransactions.filter(
-      (t) => t.customerId === input.customerId
-    );
+    const { data: transactions } = await supabase
+      .from("credit_transactions")
+      .select("*")
+      .eq("customer_id", input.customerId)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    const currentBalance = transactions.length > 0 
-      ? transactions[transactions.length - 1].balance 
+    const currentBalance = transactions && transactions.length > 0 
+      ? transactions[0].balance 
       : 0;
 
     if (input.amount > currentBalance) {
@@ -36,23 +43,41 @@ export const addPaymentProcedure = publicProcedure
 
     const newBalance = currentBalance - input.amount;
 
-    const newTransaction = {
-      id: `transaction-${Date.now()}-${Math.random()}`,
-      customerId: input.customerId,
-      type: "payment" as const,
-      amount: input.amount,
-      balance: newBalance,
-      description: input.description,
-      date: new Date(),
-      companyId: input.companyId,
-      branchId: input.branchId,
-      createdBy: input.createdBy,
-      createdAt: new Date(),
+    const { data: transaction, error } = await supabase
+      .from("credit_transactions")
+      .insert({
+        customer_id: input.customerId,
+        type: "payment",
+        amount: input.amount,
+        balance: newBalance,
+        description: input.description,
+        date: new Date().toISOString(),
+        company_id: input.companyId,
+        branch_id: input.branchId,
+        created_by: input.createdBy,
+      })
+      .select()
+      .single();
+
+    if (error || !transaction) {
+      console.error("[addPayment] Error:", error);
+      throw new Error("Error al registrar el pago");
+    }
+
+    console.log("[addPayment] Payment added:", transaction.id);
+
+    return {
+      id: transaction.id,
+      customerId: transaction.customer_id,
+      type: transaction.type,
+      saleId: transaction.sale_id,
+      amount: transaction.amount,
+      balance: transaction.balance,
+      description: transaction.description,
+      date: new Date(transaction.date),
+      companyId: transaction.company_id,
+      branchId: transaction.branch_id,
+      createdBy: transaction.created_by,
+      createdAt: new Date(transaction.created_at),
     };
-
-    db.creditTransactions.push(newTransaction);
-
-    console.log("[addPayment] Payment added:", newTransaction.id);
-
-    return newTransaction;
   });

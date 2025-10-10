@@ -1,18 +1,20 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
-function getNextSaleNumber(companyId: string, branchId: string): string {
-  const sales = db.sales.filter(
-    (s) => s.companyId === companyId && s.branchId === branchId
-  );
+async function getNextSaleNumber(companyId: string, branchId: string): Promise<string> {
+  const { data: sales } = await supabase
+    .from("sales")
+    .select("sale_number")
+    .eq("company_id", companyId)
+    .eq("branch_id", branchId);
 
-  if (sales.length === 0) {
+  if (!sales || sales.length === 0) {
     return "DTE-01-00000001-00000000-00000001";
   }
 
   const numbers = sales
-    .map((s) => s.saleNumber)
+    .map((s) => s.sale_number)
     .filter((num) => num.startsWith("DTE-"))
     .map((num) => {
       const parts = num.split("-");
@@ -60,9 +62,13 @@ export default publicProcedure
       createdBy: z.string(),
     })
   )
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     for (const item of input.items) {
-      const product = db.products.find((p) => p.id === item.productId);
+      const { data: product } = await supabase
+        .from("products")
+        .select("stock, name")
+        .eq("id", item.productId)
+        .single();
       
       if (!product) {
         throw new Error(`Producto ${item.productName} no encontrado`);
@@ -75,64 +81,130 @@ export default publicProcedure
       }
     }
 
-    const saleNumber = getNextSaleNumber(input.companyId, input.branchId);
+    const saleNumber = await getNextSaleNumber(input.companyId, input.branchId);
     
-    const sale = {
-      id: `sale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      saleNumber,
-      ...input,
-      status: 'completed' as const,
-      createdAt: new Date(),
-    };
+    const { data: sale, error: saleError } = await supabase
+      .from("sales")
+      .insert({
+        sale_number: saleNumber,
+        date: input.date.toISOString(),
+        customer_id: input.customerId || null,
+        customer_name: input.customerName,
+        customer_document: input.customerDocument,
+        customer_phone: input.customerPhone,
+        customer_email: input.customerEmail,
+        items: input.items,
+        subtotal: input.subtotal,
+        discount: input.discount,
+        tax: input.tax,
+        total: input.total,
+        payment_method: input.paymentMethod,
+        payment_type: input.paymentType,
+        status: 'completed',
+        notes: input.notes,
+        company_id: input.companyId,
+        branch_id: input.branchId,
+        created_by: input.createdBy,
+      })
+      .select()
+      .single();
+
+    if (saleError || !sale) {
+      console.error('[CREATE SALE] Error creating sale:', saleError);
+      throw new Error("Error al crear la venta");
+    }
 
     for (const item of input.items) {
-      const product = db.products.find((p) => p.id === item.productId);
+      const { data: product } = await supabase
+        .from("products")
+        .select("stock")
+        .eq("id", item.productId)
+        .single();
+
       if (product) {
-        product.stock -= item.quantity;
-        product.updatedAt = new Date();
+        await supabase
+          .from("products")
+          .update({
+            stock: product.stock - item.quantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.productId);
       }
     }
 
-    db.sales.push(sale);
-
     if (input.paymentType === 'credit' && input.customerId) {
-      const customer = db.customers.find((c) => c.id === input.customerId);
+      const { data: customer } = await supabase
+        .from("customers")
+        .select("credit_limit")
+        .eq("id", input.customerId)
+        .single();
       
       if (customer) {
-        const existingTransactions = db.creditTransactions.filter(
-          (t) => t.customerId === input.customerId
-        );
+        const { data: existingTransactions } = await supabase
+          .from("credit_transactions")
+          .select("balance")
+          .eq("customer_id", input.customerId)
+          .order("created_at", { ascending: false })
+          .limit(1);
         
-        const currentBalance = existingTransactions.length > 0
-          ? existingTransactions[existingTransactions.length - 1].balance
+        const currentBalance = existingTransactions && existingTransactions.length > 0
+          ? existingTransactions[0].balance
           : 0;
         
         const newBalance = currentBalance + input.total;
         
-        if (newBalance > customer.creditLimit) {
+        if (newBalance > customer.credit_limit) {
+          await supabase.from("sales").delete().eq("id", sale.id);
+          
           throw new Error(
-            `El crédito excede el límite disponible. Límite: ${customer.creditLimit}, Deuda actual: ${currentBalance}, Nueva deuda: ${newBalance}`
+            `El crédito excede el límite disponible. Límite: ${customer.credit_limit}, Deuda actual: ${currentBalance}, Nueva deuda: ${newBalance}`
           );
         }
         
-        const creditTransaction = {
-          id: `transaction-${Date.now()}-${Math.random()}`,
-          customerId: input.customerId,
-          type: 'sale' as const,
-          saleId: sale.id,
-          amount: input.total,
-          balance: newBalance,
-          description: `Venta ${saleNumber}`,
-          date: new Date(),
-          companyId: input.companyId,
-          branchId: input.branchId,
-          createdBy: input.createdBy,
-          createdAt: new Date(),
-        };
+        const { error: transactionError } = await supabase
+          .from("credit_transactions")
+          .insert({
+            customer_id: input.customerId,
+            type: 'sale',
+            sale_id: sale.id,
+            amount: input.total,
+            balance: newBalance,
+            description: `Venta ${saleNumber}`,
+            date: new Date().toISOString(),
+            company_id: input.companyId,
+            branch_id: input.branchId,
+            created_by: input.createdBy,
+          });
         
-        db.creditTransactions.push(creditTransaction);
+        if (transactionError) {
+          console.error('[CREATE SALE] Error creating credit transaction:', transactionError);
+          await supabase.from("sales").delete().eq("id", sale.id);
+          throw new Error("Error al crear la transacción de crédito");
+        }
       }
     }
 
-    return sale;
+    return {
+      id: sale.id,
+      saleNumber: sale.sale_number,
+      date: new Date(sale.date),
+      customerId: sale.customer_id,
+      customerName: sale.customer_name,
+      customerDocument: sale.customer_document,
+      customerPhone: sale.customer_phone,
+      customerEmail: sale.customer_email,
+      items: sale.items,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      tax: sale.tax,
+      total: sale.total,
+      paymentMethod: sale.payment_method,
+      paymentType: sale.payment_type,
+      status: sale.status,
+      notes: sale.notes,
+      companyId: sale.company_id,
+      branchId: sale.branch_id,
+      createdBy: sale.created_by,
+      createdAt: new Date(sale.created_at),
+    };
   });

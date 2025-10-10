@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const getCustomersProcedure = publicProcedure
@@ -10,42 +10,61 @@ export const getCustomersProcedure = publicProcedure
       search: z.string().optional(),
     })
   )
-  .query(({ input }) => {
+  .query(async ({ input }) => {
     console.log("[getCustomers] Input:", input);
 
-    let customers = db.customers.filter(
-      (c) => c.companyId === input.companyId && c.branchId === input.branchId
-    );
+    let query = supabase
+      .from("customers")
+      .select("*")
+      .eq("company_id", input.companyId)
+      .eq("branch_id", input.branchId);
 
     if (input.search) {
       const searchLower = input.search.toLowerCase();
-      customers = customers.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchLower) ||
-          c.code.toLowerCase().includes(searchLower) ||
-          c.email.toLowerCase().includes(searchLower) ||
-          c.phone.includes(searchLower)
+      query = query.or(
+        `name.ilike.%${searchLower}%,code.ilike.%${searchLower}%,email.ilike.%${searchLower}%,phone.ilike.%${searchLower}%`
       );
     }
 
-    const customersWithCredit = customers.map((customer) => {
-      const transactions = db.creditTransactions.filter(
-        (t) => t.customerId === customer.id
-      );
+    const { data: customers, error } = await query;
 
-      const currentDebt = transactions.length > 0 
-        ? transactions[transactions.length - 1].balance 
-        : 0;
+    if (error) {
+      console.error("[getCustomers] Error:", error);
+      throw new Error("Error al obtener clientes");
+    }
 
-      const available = customer.creditLimit - currentDebt;
+    const customersWithCredit = await Promise.all(
+      (customers || []).map(async (customer) => {
+        const { data: transactions } = await supabase
+          .from("credit_transactions")
+          .select("*")
+          .eq("customer_id", customer.id)
+          .order("created_at", { ascending: false });
 
-      return {
-        ...customer,
-        currentDebt,
-        available,
-        creditCount: transactions.filter((t) => t.type === "sale").length,
-      };
-    });
+        const currentDebt = transactions && transactions.length > 0 
+          ? transactions[0].balance 
+          : 0;
+
+        const available = customer.credit_limit - currentDebt;
+
+        return {
+          id: customer.id,
+          code: customer.code,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          address: customer.address,
+          creditLimit: customer.credit_limit,
+          companyId: customer.company_id,
+          branchId: customer.branch_id,
+          createdAt: new Date(customer.created_at),
+          updatedAt: new Date(customer.updated_at),
+          currentDebt,
+          available,
+          creditCount: transactions?.filter((t) => t.type === "sale").length || 0,
+        };
+      })
+    );
 
     console.log("[getCustomers] Found customers:", customersWithCredit.length);
 

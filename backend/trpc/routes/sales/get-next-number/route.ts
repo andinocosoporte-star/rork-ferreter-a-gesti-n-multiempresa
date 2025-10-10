@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const getNextSaleNumberProcedure = publicProcedure
@@ -9,19 +9,21 @@ export const getNextSaleNumberProcedure = publicProcedure
       branchId: z.string(),
     })
   )
-  .query(({ input }) => {
+  .query(async ({ input }) => {
     console.log("[getNextSaleNumber] Input:", input);
 
-    const sales = db.sales.filter(
-      (s) => s.companyId === input.companyId && s.branchId === input.branchId
-    );
+    const { data: sales } = await supabase
+      .from("sales")
+      .select("sale_number")
+      .eq("company_id", input.companyId)
+      .eq("branch_id", input.branchId);
 
-    if (sales.length === 0) {
+    if (!sales || sales.length === 0) {
       return "DTE-01-00000001-00000000-00000001";
     }
 
     const numbers = sales
-      .map((s) => s.saleNumber)
+      .map((s) => s.sale_number)
       .filter((num) => num.startsWith("DTE-"))
       .map((num) => {
         const parts = num.split("-");

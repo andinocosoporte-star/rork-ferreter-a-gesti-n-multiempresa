@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export default publicProcedure
@@ -9,13 +9,38 @@ export default publicProcedure
       status: z.enum(['pending', 'approved', 'rejected', 'expired']),
     })
   )
-  .mutation(({ input }) => {
-    const quote = db.quotes.find((q) => q.id === input.id);
+  .mutation(async ({ input }) => {
+    const { data: quote, error } = await supabase
+      .from("quotes")
+      .update({ status: input.status })
+      .eq("id", input.id)
+      .select()
+      .single();
 
-    if (!quote) {
+    if (error || !quote) {
+      console.error('[UPDATE QUOTE STATUS] Error:', error);
       throw new Error("Cotización no encontrada");
     }
 
-    quote.status = input.status;
-    return quote;
+    return {
+      id: quote.id,
+      quoteNumber: quote.quote_number,
+      date: new Date(quote.date),
+      validUntil: new Date(quote.valid_until),
+      customerName: quote.customer_name,
+      customerDocument: quote.customer_document,
+      customerPhone: quote.customer_phone,
+      customerEmail: quote.customer_email,
+      items: quote.items,
+      subtotal: quote.subtotal,
+      discount: quote.discount,
+      tax: quote.tax,
+      total: quote.total,
+      status: quote.status,
+      notes: quote.notes,
+      companyId: quote.company_id,
+      branchId: quote.branch_id,
+      createdBy: quote.created_by,
+      createdAt: new Date(quote.created_at),
+    };
   });

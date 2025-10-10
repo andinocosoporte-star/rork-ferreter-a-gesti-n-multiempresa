@@ -1,18 +1,20 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
-function getNextQuoteNumber(companyId: string, branchId: string): string {
-  const quotes = db.quotes.filter(
-    (q) => q.companyId === companyId && q.branchId === branchId
-  );
+async function getNextQuoteNumber(companyId: string, branchId: string): Promise<string> {
+  const { data: quotes } = await supabase
+    .from("quotes")
+    .select("quote_number")
+    .eq("company_id", companyId)
+    .eq("branch_id", branchId);
 
-  if (quotes.length === 0) {
+  if (!quotes || quotes.length === 0) {
     return "COT-00000001";
   }
 
   const numbers = quotes
-    .map((q) => q.quoteNumber)
+    .map((q) => q.quote_number)
     .filter((num) => num.startsWith("COT-"))
     .map((num) => {
       const parts = num.split("-");
@@ -58,25 +60,69 @@ export default publicProcedure
       createdBy: z.string(),
     })
   )
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     for (const item of input.items) {
-      const product = db.products.find((p) => p.id === item.productId);
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, name")
+        .eq("id", item.productId)
+        .single();
       
       if (!product) {
         throw new Error(`Producto ${item.productName} no encontrado`);
       }
     }
 
-    const quoteNumber = getNextQuoteNumber(input.companyId, input.branchId);
+    const quoteNumber = await getNextQuoteNumber(input.companyId, input.branchId);
     
-    const quote = {
-      id: `quote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      quoteNumber,
-      ...input,
-      status: 'pending' as const,
-      createdAt: new Date(),
-    };
+    const { data: quote, error } = await supabase
+      .from("quotes")
+      .insert({
+        quote_number: quoteNumber,
+        date: input.date.toISOString(),
+        valid_until: input.validUntil.toISOString(),
+        customer_name: input.customerName,
+        customer_document: input.customerDocument,
+        customer_phone: input.customerPhone,
+        customer_email: input.customerEmail,
+        items: input.items,
+        subtotal: input.subtotal,
+        discount: input.discount,
+        tax: input.tax,
+        total: input.total,
+        status: 'pending',
+        notes: input.notes,
+        company_id: input.companyId,
+        branch_id: input.branchId,
+        created_by: input.createdBy,
+      })
+      .select()
+      .single();
 
-    db.quotes.push(quote);
-    return quote;
+    if (error || !quote) {
+      console.error('[CREATE QUOTE] Error:', error);
+      throw new Error("Error al crear la cotización");
+    }
+
+    return {
+      id: quote.id,
+      quoteNumber: quote.quote_number,
+      date: new Date(quote.date),
+      validUntil: new Date(quote.valid_until),
+      customerName: quote.customer_name,
+      customerDocument: quote.customer_document,
+      customerPhone: quote.customer_phone,
+      customerEmail: quote.customer_email,
+      items: quote.items,
+      subtotal: quote.subtotal,
+      discount: quote.discount,
+      tax: quote.tax,
+      total: quote.total,
+      status: quote.status,
+      notes: quote.notes,
+      companyId: quote.company_id,
+      branchId: quote.branch_id,
+      createdBy: quote.created_by,
+      createdAt: new Date(quote.created_at),
+    };
   });
