@@ -1,0 +1,8 @@
+env: load .env
+env: export EXPO_PUBLIC_RORK_API_BASE_URL SUPABASE_URL
+Starting project at /workspace
+› Port 8084 is being used by another process
+Input is required, but 'npx expo' is in non-interactive mode.
+Required input:
+> Use port 8085 instead?
+› Skipping dev server
