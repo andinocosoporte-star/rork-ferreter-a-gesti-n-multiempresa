@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const registerProcedure = publicProcedure
@@ -20,86 +20,103 @@ export const registerProcedure = publicProcedure
     })
   )
   .mutation(async ({ input }) => {
-    const existingUser = db.users.find((u) => u.email === input.email);
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", input.email)
+      .single();
+
     if (existingUser) {
       throw new Error("El correo electrónico ya está registrado");
     }
 
-    const companyId = `company_${Date.now()}`;
-    const roleId = `role_${Date.now()}`;
-    const branchId = `branch_${Date.now()}`;
-    const userId = `user_${Date.now()}`;
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .insert({
+        name: input.companyName,
+        legal_name: input.companyLegalName,
+        tax_id: input.companyTaxId,
+        email: input.companyEmail,
+        phone: input.companyPhone,
+        address: input.companyAddress,
+        city: input.companyCity,
+        country: input.companyCountry,
+      })
+      .select()
+      .single();
 
-    const company = {
-      id: companyId,
-      name: input.companyName,
-      legalName: input.companyLegalName,
-      taxId: input.companyTaxId,
-      email: input.companyEmail,
-      phone: input.companyPhone,
-      address: input.companyAddress,
-      city: input.companyCity,
-      country: input.companyCountry,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    if (companyError || !company) {
+      throw new Error("Error al crear la empresa");
+    }
 
-    const role = {
-      id: roleId,
-      name: "Administrador",
-      description: "Acceso completo al sistema",
-      permissions: ["all"],
-      companyId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const { data: role, error: roleError } = await supabase
+      .from("roles")
+      .insert({
+        name: "Administrador",
+        description: "Acceso completo al sistema",
+        permissions: ["all"],
+        company_id: company.id,
+      })
+      .select()
+      .single();
 
-    const branch = {
-      id: branchId,
-      companyId,
-      code: "SUC-001",
-      name: "Sucursal Principal",
-      email: input.companyEmail,
-      phone: input.companyPhone,
-      address: input.companyAddress,
-      city: input.companyCity,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    if (roleError || !role) {
+      throw new Error("Error al crear el rol");
+    }
 
-    const user = {
-      id: userId,
-      email: input.email,
-      password: input.password,
-      name: input.name,
-      phone: input.phone,
-      roleId,
-      companyId,
-      branchId,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const { data: branch, error: branchError } = await supabase
+      .from("branches")
+      .insert({
+        company_id: company.id,
+        code: "SUC-001",
+        name: "Sucursal Principal",
+        email: input.companyEmail,
+        phone: input.companyPhone,
+        address: input.companyAddress,
+        city: input.companyCity,
+        is_active: true,
+      })
+      .select()
+      .single();
 
-    db.companies.push(company);
-    db.roles.push(role);
-    db.branches.push(branch);
-    db.users.push(user);
+    if (branchError || !branch) {
+      throw new Error("Error al crear la sucursal");
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert({
+        email: input.email,
+        password: input.password,
+        name: input.name,
+        phone: input.phone,
+        role_id: role.id,
+        company_id: company.id,
+        branch_id: branch.id,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (userError || !user) {
+      throw new Error("Error al crear el usuario");
+    }
 
     const token = `token_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    const session = {
-      id: `session_${Date.now()}`,
-      userId: user.id,
-      token,
-      expiresAt,
-      createdAt: new Date(),
-    };
+    const { error: sessionError } = await supabase
+      .from("auth_sessions")
+      .insert({
+        user_id: user.id,
+        token,
+        expires_at: expiresAt.toISOString(),
+      });
 
-    db.authSessions.push(session);
+    if (sessionError) {
+      throw new Error("Error al crear la sesión");
+    }
 
     return {
       token,
@@ -108,12 +125,12 @@ export const registerProcedure = publicProcedure
         email: user.email,
         name: user.name,
         phone: user.phone,
-        roleId: user.roleId,
+        roleId: user.role_id,
         roleName: role.name,
         permissions: role.permissions,
-        companyId: user.companyId,
+        companyId: user.company_id,
         companyName: company.name,
-        branchId: user.branchId,
+        branchId: user.branch_id,
         branchName: branch.name,
       },
     };

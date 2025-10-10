@@ -1,16 +1,18 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export default publicProcedure
   .input(z.object({ id: z.string() }))
-  .mutation(({ input }) => {
-    const index = db.products.findIndex((p) => p.id === input.id);
+  .mutation(async ({ input }) => {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", input.id);
 
-    if (index === -1) {
-      throw new Error("Producto no encontrado");
+    if (error) {
+      throw new Error("Error al eliminar el producto");
     }
 
-    db.products.splice(index, 1);
     return { success: true };
   });

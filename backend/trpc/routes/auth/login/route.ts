@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const loginProcedure = publicProcedure
@@ -10,11 +10,15 @@ export const loginProcedure = publicProcedure
     })
   )
   .mutation(async ({ input }) => {
-    const user = db.users.find(
-      (u) => u.email === input.email && u.password === input.password && u.isActive
-    );
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", input.email)
+      .eq("password", input.password)
+      .eq("is_active", true)
+      .single();
 
-    if (!user) {
+    if (userError || !user) {
       throw new Error("Credenciales inválidas");
     }
 
@@ -22,19 +26,39 @@ export const loginProcedure = publicProcedure
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    const session = {
-      id: `session_${Date.now()}`,
-      userId: user.id,
-      token,
-      expiresAt,
-      createdAt: new Date(),
-    };
+    const { error: sessionError } = await supabase
+      .from("auth_sessions")
+      .insert({
+        user_id: user.id,
+        token,
+        expires_at: expiresAt.toISOString(),
+      });
 
-    db.authSessions.push(session);
+    if (sessionError) {
+      throw new Error("Error al crear la sesión");
+    }
 
-    const role = db.roles.find((r) => r.id === user.roleId);
-    const company = db.companies.find((c) => c.id === user.companyId);
-    const branch = user.branchId ? db.branches.find((b) => b.id === user.branchId) : undefined;
+    const { data: role } = await supabase
+      .from("roles")
+      .select("*")
+      .eq("id", user.role_id)
+      .single();
+
+    const { data: company } = await supabase
+      .from("companies")
+      .select("*")
+      .eq("id", user.company_id)
+      .single();
+
+    let branch = undefined;
+    if (user.branch_id) {
+      const { data: branchData } = await supabase
+        .from("branches")
+        .select("*")
+        .eq("id", user.branch_id)
+        .single();
+      branch = branchData;
+    }
 
     return {
       token,
@@ -43,12 +67,12 @@ export const loginProcedure = publicProcedure
         email: user.email,
         name: user.name,
         phone: user.phone,
-        roleId: user.roleId,
+        roleId: user.role_id,
         roleName: role?.name || "",
         permissions: role?.permissions || [],
-        companyId: user.companyId,
+        companyId: user.company_id,
         companyName: company?.name || "",
-        branchId: user.branchId,
+        branchId: user.branch_id,
         branchName: branch?.name,
       },
     };

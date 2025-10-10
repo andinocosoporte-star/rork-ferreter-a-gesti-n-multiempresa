@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export default publicProcedure
@@ -19,23 +19,56 @@ export default publicProcedure
       branchId: z.string(),
     })
   )
-  .mutation(({ input }) => {
-    const existingProduct = db.products.find(
-      (p) => p.code === input.code && p.companyId === input.companyId
-    );
+  .mutation(async ({ input }) => {
+    const { data: existingProduct } = await supabase
+      .from("products")
+      .select("id")
+      .eq("code", input.code)
+      .eq("company_id", input.companyId)
+      .single();
 
     if (existingProduct) {
       throw new Error("Ya existe un producto con este código");
     }
 
-    const product = {
-      id: `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...input,
-      detailedDescription: input.detailedDescription || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const { data: product, error } = await supabase
+      .from("products")
+      .insert({
+        code: input.code,
+        name: input.name,
+        description: input.description,
+        detailed_description: input.detailedDescription || "",
+        category: input.category,
+        unit: input.unit,
+        stock: input.stock,
+        min_stock: input.minStock,
+        cost: input.cost,
+        price: input.price,
+        company_id: input.companyId,
+        branch_id: input.branchId,
+      })
+      .select()
+      .single();
 
-    db.products.push(product);
-    return product;
+    if (error || !product) {
+      throw new Error("Error al crear el producto");
+    }
+
+    return {
+      id: product.id,
+      code: product.code,
+      name: product.name,
+      description: product.description,
+      detailedDescription: product.detailed_description,
+      category: product.category,
+      unit: product.unit,
+      stock: product.stock,
+      minStock: product.min_stock,
+      cost: product.cost,
+      price: product.price,
+      companyId: product.company_id,
+      branchId: product.branch_id,
+      createdAt: new Date(product.created_at),
+      updatedAt: new Date(product.updated_at),
+    };
   });

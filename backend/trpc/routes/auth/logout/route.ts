@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export const logoutProcedure = publicProcedure
@@ -9,11 +9,10 @@ export const logoutProcedure = publicProcedure
     })
   )
   .mutation(async ({ input }) => {
-    const sessionIndex = db.authSessions.findIndex((s) => s.token === input.token);
-    
-    if (sessionIndex !== -1) {
-      db.authSessions.splice(sessionIndex, 1);
-    }
+    await supabase
+      .from("auth_sessions")
+      .delete()
+      .eq("token", input.token);
 
     return { success: true };
   });

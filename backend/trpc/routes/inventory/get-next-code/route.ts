@@ -1,5 +1,5 @@
 import { publicProcedure } from "../../../create-context";
-import { db } from "../../../../db/schema";
+import { supabase } from "../../../../db/supabase";
 import { z } from "zod";
 
 export default publicProcedure
@@ -8,12 +8,13 @@ export default publicProcedure
       companyId: z.string(),
     })
   )
-  .query(({ input }) => {
-    const companyProducts = db.products.filter(
-      (p) => p.companyId === input.companyId
-    );
+  .query(async ({ input }) => {
+    const { data: companyProducts } = await supabase
+      .from("products")
+      .select("code")
+      .eq("company_id", input.companyId);
 
-    if (companyProducts.length === 0) {
+    if (!companyProducts || companyProducts.length === 0) {
       return "MAT-001";
     }
 
