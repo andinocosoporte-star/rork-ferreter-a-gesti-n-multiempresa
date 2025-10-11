@@ -2,13 +2,9 @@ import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 
-// Nota: En algunos entornos (Metro/Expo) los archivos del backend pueden ser
-// incluidos accidentalmente en el bundle del cliente. Evitamos lanzar una
-// excepción que rompa la UI y, en su lugar, mostramos una advertencia.
-// En runtime de servidor/Edge `window` es undefined.
 if (typeof window !== "undefined") {
-  console.warn(
-    "[tRPC] Aviso: @trpc/server no debe ejecutarse en el cliente. Asegúrate de usar lib/trpc para cliente."
+  throw new Error(
+    "Error: You're trying to use @trpc/server in a non-server environment. This is not supported by default."
   );
 }
 
