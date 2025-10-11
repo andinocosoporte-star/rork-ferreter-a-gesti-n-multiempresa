@@ -64,5 +64,3 @@ export const appRouter = createTRPCRouter({
     getCurrentUser: getCurrentUserProcedure,
   }),
 });
-
-export type AppRouter = typeof appRouter;

@@ -1,12 +1,6 @@
-import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
-
-if (typeof window !== "undefined") {
-  throw new Error(
-    "Error: You're trying to use @trpc/server in a non-server environment. This is not supported by default."
-  );
-}
 
 export const createContext = async (opts: FetchCreateContextFnOptions) => {
   return {
