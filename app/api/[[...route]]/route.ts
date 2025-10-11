@@ -1,8 +1,10 @@
+
 import { handle } from "hono/vercel";
 import app from "@/backend/hono";
 
-export const runtime = "edge";
+export const runtime = "edge"; // opcional, puedes quitarlo si no usas Edge
 
+// Exporta todos los métodos HTTP que usará tu Hono app
 export const GET = handle(app);
 export const POST = handle(app);
 export const PUT = handle(app);
