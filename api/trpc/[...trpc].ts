@@ -7,6 +7,7 @@ export const config = { runtime: "edge" };
 const endpoint = "/api/trpc";
 
 export default async function handler(req: Request): Promise<Response> {
+  // Responder preflight CORS
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
