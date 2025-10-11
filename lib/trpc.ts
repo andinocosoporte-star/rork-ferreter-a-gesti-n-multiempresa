@@ -20,7 +20,7 @@ const getBaseUrl = () => {
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
-      url: `${getBaseUrl()}/api/trpc`,
+      url: `${getBaseUrl()}${process.env.EXPO_PUBLIC_TRPC_PATH ?? '/api/rpc'}`,
       transformer: superjson,
       headers: async () => {
         // Attach Authorization header from AsyncStorage when available.
