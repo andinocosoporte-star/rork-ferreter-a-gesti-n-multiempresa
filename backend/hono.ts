@@ -6,6 +6,10 @@ import { createContext } from "./trpc/create-context";
 
 const app = new Hono();
 
+console.log("[Hono] Starting server...");
+console.log("[Hono] SUPABASE_URL:", process.env.SUPABASE_URL ? "✓ Set" : "✗ Missing");
+console.log("[Hono] SUPABASE_SERVICE_KEY:", process.env.SUPABASE_SERVICE_KEY ? "✓ Set" : "✗ Missing");
+
 // Use a more conservative CORS configuration. When credentials are enabled,
 // Access-Control-Allow-Origin must not be '*'. To avoid accidental leaks in
 // production keep credentials disabled unless you explicitly set ALLOWED_ORIGIN.
@@ -42,7 +46,14 @@ app.use(
 );
 
 app.get("/", (c) => {
-  return c.json({ status: "ok", message: "API is running" });
+  return c.json({ 
+    status: "ok", 
+    message: "API is running",
+    supabase: {
+      url: process.env.SUPABASE_URL ? "configured" : "missing",
+      serviceKey: process.env.SUPABASE_SERVICE_KEY ? "configured" : "missing"
+    }
+  });
 });
 
 app.notFound((c) => {

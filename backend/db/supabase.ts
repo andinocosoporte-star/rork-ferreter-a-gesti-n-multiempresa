@@ -3,8 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+console.log('[Supabase] Initializing client...');
+console.log('[Supabase] URL:', supabaseUrl || 'MISSING');
+console.log('[Supabase] Service Key:', supabaseServiceKey ? 'SET (length: ' + supabaseServiceKey.length + ')' : 'MISSING');
+
 if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY (or SUPABASE_SERVICE_ROLE_KEY)');
+  const error = 'Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY in Vercel environment variables.';
+  console.error('[Supabase] ERROR:', error);
+  throw new Error(error);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
