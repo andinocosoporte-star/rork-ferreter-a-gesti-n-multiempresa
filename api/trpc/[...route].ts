@@ -16,6 +16,11 @@ app.use("*", cors({
   credentials: false,
 }));
 
+// Endpoint de salud para probar la función
+app.get("/health", (c) => {
+  return c.json({ ok: true, path: c.req.path, url: c.req.url });
+});
+
 // Montar tRPC bajo cualquier subruta del endpoint actual
 app.use(
   "/*",
