@@ -1,8 +1,13 @@
-export const runtime = 'edge';
+export const config = {
+  runtime: 'edge',
+};
 
-export async function GET() {
+export default async function handler(req: Request): Promise<Response> {
   return new Response(JSON.stringify({ status: 'ok', runtime: 'edge' }), {
     status: 200,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
   });
 }
