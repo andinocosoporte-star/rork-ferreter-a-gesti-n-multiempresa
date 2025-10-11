@@ -1,3 +1,9 @@
+
+// Solo permitir ejecución en Node.js tradicional
+if (typeof window !== "undefined" || process.env.NEXT_RUNTIME === "edge") {
+  throw new Error("@trpc/server solo puede usarse en el backend Node.js, no en el cliente ni en Edge Runtime.");
+}
+
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
