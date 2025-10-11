@@ -16,14 +16,19 @@ app.use("*", cors({
   credentials: false,
 }));
 
+app.onError((err, c) => {
+  console.error("[Edge] Hono error:", err);
+  return c.json({ ok: false, error: err?.message || String(err) }, 500);
+});
+
 // Endpoint de salud para probar la función
-app.get("/health", (c) => {
+app.get("/api/trpc", (c) => {
   return c.json({ ok: true, path: c.req.path, url: c.req.url });
 });
 
 // Montar tRPC bajo cualquier subruta del endpoint actual
 app.use(
-  "/*",
+  "/api/trpc/*",
   trpcServer({
     router: appRouter,
     createContext,
