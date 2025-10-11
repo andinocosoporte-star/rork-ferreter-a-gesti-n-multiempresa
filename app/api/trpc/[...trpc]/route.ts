@@ -2,23 +2,11 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../../../backend/trpc/app-router";
 import { createContext } from "../../../../backend/trpc/create-context";
 
-export const config = { runtime: "edge" };
+export const runtime = "edge";
 
 const endpoint = "/api/trpc";
 
-export default async function handler(req: Request): Promise<Response> {
-  // Responder preflight CORS
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-    });
-  }
-
+const handler = async (req: Request): Promise<Response> => {
   try {
     return await fetchRequestHandler({
       endpoint,
@@ -39,4 +27,17 @@ export default async function handler(req: Request): Promise<Response> {
       }
     );
   }
-}
+};
+
+export const GET = handler;
+export const POST = handler;
+export const OPTIONS = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+};
