@@ -4,6 +4,8 @@ import { cors } from "hono/cors";
 import { appRouter } from "../../backend/trpc/app-router";
 import { createContext } from "../../backend/trpc/create-context";
 
+export const config = { runtime: "edge" };
+
 const app = new Hono();
 
 // CORS básico
@@ -14,9 +16,9 @@ app.use("*", cors({
   credentials: false,
 }));
 
-// Montar tRPC bajo /api/trpc/*
+// Montar tRPC bajo cualquier subruta del endpoint actual
 app.use(
-  "/api/trpc/*",
+  "/*",
   trpcServer({
     router: appRouter,
     createContext,

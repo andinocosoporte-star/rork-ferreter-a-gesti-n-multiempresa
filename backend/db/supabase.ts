@@ -4,21 +4,21 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 console.log('[Supabase] Initializing client...');
-console.log('[Supabase] URL:', supabaseUrl || 'MISSING');
+console.log('[Supabase] URL:', supabaseUrl ? 'SET' : 'MISSING');
 console.log('[Supabase] Service Key:', supabaseServiceKey ? 'SET (length: ' + supabaseServiceKey.length + ')' : 'MISSING');
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  const error = 'Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY in Vercel environment variables.';
-  console.error('[Supabase] ERROR:', error);
-  throw new Error(error);
-}
-
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+// En entornos Edge, evitar lanzar error en la carga del módulo para que rutas
+// que no requieren Supabase funcionen. Se crea el cliente solo si existen las
+// variables, de lo contrario se exporta `undefined` y las rutas que lo usen
+// fallarán explícitamente cuando intenten acceder.
+export const supabase = (supabaseUrl && supabaseServiceKey)
+  ? createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
-});
+})
+  : (undefined as any);
 
 export type Database = {
   public: {
