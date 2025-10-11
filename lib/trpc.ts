@@ -1,6 +1,6 @@
 import { createTRPCReact } from "@trpc/react-query";
 import { httpLink } from "@trpc/client";
-import type { AppRouter } from "@/backend/trpc/app-router";
+import type { AppRouter } from "@/backend/trpc/router-type";
 import superjson from "superjson";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
