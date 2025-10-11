@@ -9,7 +9,7 @@ export const getNextQuoteNumberProcedure = publicProcedure
       branchId: z.string(),
     })
   )
-  .query(async ({ input }) => {
+  .query(async ({ input }): Promise<string> => {
     console.log("[getNextQuoteNumber] Input:", input);
 
     const { data: quotes } = await supabase
@@ -23,9 +23,9 @@ export const getNextQuoteNumberProcedure = publicProcedure
     }
 
     const numbers = quotes
-      .map((q) => q.quote_number)
-      .filter((num) => num.startsWith("COT-"))
-      .map((num) => {
+      .map((q: any) => q.quote_number)
+      .filter((num: string) => num.startsWith("COT-"))
+      .map((num: string) => {
         const parts = num.split("-");
         if (parts.length === 2) {
           const correlativo = parseInt(parts[1]);

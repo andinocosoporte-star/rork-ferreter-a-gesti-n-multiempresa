@@ -10,7 +10,7 @@ export const getCustomersProcedure = publicProcedure
       search: z.string().optional(),
     })
   )
-  .query(async ({ input }) => {
+  .query(async ({ input }): Promise<any[]> => {
     console.log("[getCustomers] Input:", input);
 
     let query = supabase
@@ -34,7 +34,7 @@ export const getCustomersProcedure = publicProcedure
     }
 
     const customersWithCredit = await Promise.all(
-      (customers || []).map(async (customer) => {
+      (customers || []).map(async (customer: any) => {
         const { data: transactions } = await supabase
           .from("credit_transactions")
           .select("*")
@@ -45,7 +45,7 @@ export const getCustomersProcedure = publicProcedure
           ? transactions[0].balance 
           : 0;
 
-        const available = customer.credit_limit - currentDebt;
+        const available = (customer.credit_limit as number) - currentDebt;
 
         return {
           id: customer.id,
@@ -61,7 +61,7 @@ export const getCustomersProcedure = publicProcedure
           updatedAt: new Date(customer.updated_at),
           currentDebt,
           available,
-          creditCount: transactions?.filter((t) => t.type === "sale").length || 0,
+          creditCount: transactions?.filter((t: any) => t.type === "sale").length || 0,
         };
       })
     );

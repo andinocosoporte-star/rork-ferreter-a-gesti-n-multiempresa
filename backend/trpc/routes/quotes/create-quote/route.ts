@@ -14,9 +14,9 @@ async function getNextQuoteNumber(companyId: string, branchId: string): Promise<
   }
 
   const numbers = quotes
-    .map((q) => q.quote_number)
-    .filter((num) => num.startsWith("COT-"))
-    .map((num) => {
+    .map((q: any) => q.quote_number)
+    .filter((num: string) => num.startsWith("COT-"))
+    .map((num: string) => {
       const parts = num.split("-");
       if (parts.length === 2) {
         const correlativo = parseInt(parts[1]);
@@ -60,7 +60,7 @@ export default publicProcedure
       createdBy: z.string(),
     })
   )
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }): Promise<any> => {
     for (const item of input.items) {
       const { data: product } = await supabase
         .from("products")
