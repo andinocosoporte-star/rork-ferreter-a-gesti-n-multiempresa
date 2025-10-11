@@ -2,9 +2,14 @@ import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 
-// Prevenir uso en cliente; permitir Node y Edge runtimes.
+// Nota: En algunos entornos (Metro/Expo) los archivos del backend pueden ser
+// incluidos accidentalmente en el bundle del cliente. Evitamos lanzar una
+// excepción que rompa la UI y, en su lugar, mostramos una advertencia.
+// En runtime de servidor/Edge `window` es undefined.
 if (typeof window !== "undefined") {
-  throw new Error("@trpc/server solo puede usarse en el backend Node.js/Edge, no en el cliente.");
+  console.warn(
+    "[tRPC] Aviso: @trpc/server no debe ejecutarse en el cliente. Asegúrate de usar lib/trpc para cliente."
+  );
 }
 
 export const createContext = async (opts: FetchCreateContextFnOptions) => {
