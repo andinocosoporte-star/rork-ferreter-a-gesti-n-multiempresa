@@ -30,7 +30,7 @@ export default publicProcedure
     
     console.log('[GET PRODUCTS] Returning products:', products?.length || 0);
     
-    return (products || []).map(p => ({
+    return (products || []).map((p: any) => ({
       id: p.id,
       code: p.code,
       name: p.name,

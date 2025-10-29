@@ -14,9 +14,9 @@ async function getNextSaleNumber(companyId: string, branchId: string): Promise<s
   }
 
   const numbers = sales
-    .map((s) => s.sale_number)
-    .filter((num) => num.startsWith("DTE-"))
-    .map((num) => {
+    .map((s: { sale_number: string }) => s.sale_number)
+    .filter((num: string) => num.startsWith("DTE-"))
+    .map((num: string) => {
       const parts = num.split("-");
       if (parts.length === 5) {
         const correlativo = parseInt(parts[4]);

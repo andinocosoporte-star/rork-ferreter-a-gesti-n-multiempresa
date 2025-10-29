@@ -27,7 +27,7 @@ export default publicProcedure
       throw new Error("Error al obtener ventas");
     }
     
-    return (sales || []).map(s => ({
+    return (sales || []).map((s: any) => ({
       id: s.id,
       saleNumber: s.sale_number,
       date: new Date(s.date),

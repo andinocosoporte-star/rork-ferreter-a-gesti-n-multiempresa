@@ -57,7 +57,7 @@ export default function InventoryScreen() {
       setForm(emptyForm);
       Alert.alert("Éxito", "Material creado correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -70,7 +70,7 @@ export default function InventoryScreen() {
       setEditingId(null);
       Alert.alert("Éxito", "Material actualizado correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -80,18 +80,18 @@ export default function InventoryScreen() {
       productsQuery.refetch();
       Alert.alert("Éxito", "Material eliminado correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
 
   const importMutation = trpc.inventory.importProducts.useMutation({
-    onSuccess: (result) => {
+    onSuccess: (result: { success: number; total: number; errors: string[] }) => {
       productsQuery.refetch();
       const message = `Importados: ${result.success}/${result.total}\n${result.errors.length > 0 ? `\nErrores:\n${result.errors.slice(0, 5).join("\n")}` : ""}`;
       Alert.alert("Importación completada", message);
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -99,7 +99,7 @@ export default function InventoryScreen() {
   const products = productsQuery.data || [];
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return products.filter((p: any) => {
       const matchesSearch =
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,8 +111,8 @@ export default function InventoryScreen() {
 
   const stats = useMemo(() => {
     const totalProducts = products.length;
-    const lowStock = products.filter((p) => p.stock <= p.minStock).length;
-    const totalValue = products.reduce((sum, p) => sum + p.stock * p.price, 0);
+    const lowStock = products.filter((p: any) => p.stock <= p.minStock).length;
+    const totalValue = products.reduce((sum: number, p: any) => sum + p.stock * p.price, 0);
 
     return { totalProducts, lowStock, totalValue };
   }, [products]);
@@ -121,7 +121,7 @@ export default function InventoryScreen() {
 
   const handleOpenModal = (productId?: string) => {
     if (productId) {
-      const product = products.find((p) => p.id === productId);
+      const product = products.find((p: any) => p.id === productId);
       if (product) {
         setEditingId(productId);
         setForm({
@@ -200,9 +200,9 @@ export default function InventoryScreen() {
         link.click();
         document.body.removeChild(link);
       } else {
-        const fileUri = `${FileSystem.documentDirectory}${filename}`;
-        await FileSystem.writeAsStringAsync(fileUri, csv, {
-          encoding: FileSystem.EncodingType.UTF8,
+        const fileUri = `${(FileSystem as any).documentDirectory}${filename}`;
+        await (FileSystem as any).writeAsStringAsync(fileUri, csv, {
+          encoding: 'utf8' as any,
         });
         await Sharing.shareAsync(fileUri);
       }
@@ -231,9 +231,9 @@ export default function InventoryScreen() {
         link.click();
         document.body.removeChild(link);
       } else {
-        const fileUri = `${FileSystem.documentDirectory}${filename}`;
-        await FileSystem.writeAsStringAsync(fileUri, csv, {
-          encoding: FileSystem.EncodingType.UTF8,
+        const fileUri = `${(FileSystem as any).documentDirectory}${filename}`;
+        await (FileSystem as any).writeAsStringAsync(fileUri, csv, {
+          encoding: 'utf8' as any,
         });
         await Sharing.shareAsync(fileUri);
       }
@@ -260,8 +260,8 @@ export default function InventoryScreen() {
         const response = await fetch(fileUri);
         csvData = await response.text();
       } else {
-        csvData = await FileSystem.readAsStringAsync(fileUri, {
-          encoding: FileSystem.EncodingType.UTF8,
+        csvData = await (FileSystem as any).readAsStringAsync(fileUri, {
+          encoding: 'utf8' as any,
         });
       }
 
@@ -327,7 +327,7 @@ export default function InventoryScreen() {
         ) : filteredProducts.length === 0 ? (
           <Text style={styles.emptyText}>No hay productos registrados</Text>
         ) : (
-          filteredProducts.map((product) => (
+          filteredProducts.map((product: any) => (
             <TouchableOpacity
               key={product.id}
               style={styles.productCard}

@@ -61,7 +61,7 @@ export default function QuotesScreen() {
       setItems([]);
       Alert.alert("Éxito", "Cotización creada correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -71,7 +71,7 @@ export default function QuotesScreen() {
       quotesQuery.refetch();
       Alert.alert("Éxito", "Estado actualizado correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -84,13 +84,13 @@ export default function QuotesScreen() {
   
 
 
-  const filteredProducts = products.filter((p) =>
+  const filteredProducts = products.filter((p: any) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
     p.code.toLowerCase().includes(productSearch.toLowerCase())
   );
 
   const addProduct = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
+    const product = products.find((p: any) => p.id === productId);
     if (!product) return;
 
     const existingItem = items.find((i) => i.productId === productId);
@@ -164,7 +164,7 @@ export default function QuotesScreen() {
       ...form,
       date: form.date,
       validUntil: form.validUntil,
-      items: items.map((item) => ({
+      items: items.map((item: QuoteItem) => ({
         productId: item.productId,
         productCode: item.productCode,
         productName: item.productName,
@@ -231,7 +231,7 @@ export default function QuotesScreen() {
         ) : quotes.length === 0 ? (
           <Text style={styles.emptyText}>No hay cotizaciones registradas</Text>
         ) : (
-          quotes.map((quote) => (
+          quotes.map((quote: any) => (
             <TouchableOpacity key={quote.id} style={styles.quoteCard} onPress={() => router.push(`/quotes/${quote.id}`)}>
               <View style={styles.quoteHeader}>
                 <View>
@@ -461,7 +461,7 @@ export default function QuotesScreen() {
             </View>
 
             <ScrollView style={styles.productList}>
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product: any) => (
                 <TouchableOpacity
                   key={product.id}
                   style={styles.productItem}

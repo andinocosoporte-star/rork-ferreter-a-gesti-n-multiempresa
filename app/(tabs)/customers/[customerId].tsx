@@ -35,7 +35,7 @@ export default function CustomerDetailScreen() {
       setPaymentDescription("");
       Alert.alert("Éxito", "Pago registrado correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -152,7 +152,7 @@ export default function CustomerDetailScreen() {
               <Text style={styles.emptyText}>No hay transacciones registradas</Text>
             </View>
           ) : (
-            transactions.map((transaction) => (
+            transactions.map((transaction: any) => (
               <View key={transaction.id} style={styles.transactionCard}>
                 <View style={styles.transactionHeader}>
                   <View

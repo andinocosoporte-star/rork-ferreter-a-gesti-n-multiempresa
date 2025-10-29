@@ -19,9 +19,9 @@ export default publicProcedure
     }
 
     const matCodes = companyProducts
-      .map((p) => p.code)
-      .filter((code) => code.startsWith("MAT-"))
-      .map((code) => {
+      .map((p: { code: string }) => p.code)
+      .filter((code: string) => code.startsWith("MAT-"))
+      .map((code: string) => {
         const num = parseInt(code.replace("MAT-", ""), 10);
         return isNaN(num) ? 0 : num;
       });

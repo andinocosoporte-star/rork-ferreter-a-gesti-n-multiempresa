@@ -23,9 +23,9 @@ export const getNextCustomerCodeProcedure = publicProcedure
     }
 
     const codes = customers
-      .map((c) => c.code)
-      .filter((code) => code.startsWith("CLI-"))
-      .map((code) => {
+      .map((c: { code: string }) => c.code)
+      .filter((code: string) => code.startsWith("CLI-"))
+      .map((code: string) => {
         const num = parseInt(code.split("-")[1]);
         return isNaN(num) ? 0 : num;
       });

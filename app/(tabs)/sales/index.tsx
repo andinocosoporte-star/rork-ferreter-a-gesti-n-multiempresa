@@ -69,7 +69,7 @@ export default function SalesScreen() {
       setItems([]);
       Alert.alert("Éxito", "Venta registrada correctamente");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
@@ -84,18 +84,18 @@ export default function SalesScreen() {
   
 
 
-  const filteredProducts = products.filter((p) =>
+  const filteredProducts = products.filter((p: any) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
     p.code.toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  const filteredCustomers = customers.filter((c) =>
+  const filteredCustomers = customers.filter((c: any) =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.code.toLowerCase().includes(customerSearch.toLowerCase())
   );
 
   const selectCustomer = (customerId: string) => {
-    const customer = customers.find((c) => c.id === customerId);
+    const customer = customers.find((c: any) => c.id === customerId);
     if (!customer) return;
 
     setForm({
@@ -110,7 +110,7 @@ export default function SalesScreen() {
   };
 
   const addProduct = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
+    const product = products.find((p: any) => p.id === productId);
     if (!product) return;
 
     const existingItem = items.find((i) => i.productId === productId);
@@ -251,7 +251,7 @@ export default function SalesScreen() {
         ) : sales.length === 0 ? (
           <Text style={styles.emptyText}>No hay ventas registradas</Text>
         ) : (
-          sales.map((sale) => (
+          sales.map((sale: any) => (
             <TouchableOpacity key={sale.id} style={styles.saleCard} onPress={() => router.push(`/sales/${sale.id}`)}>
               <View style={styles.saleHeader}>
                 <View>
@@ -522,7 +522,7 @@ export default function SalesScreen() {
             </View>
 
             <ScrollView style={styles.productList}>
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product: any) => (
                 <TouchableOpacity
                   key={product.id}
                   style={styles.productItem}
@@ -563,7 +563,7 @@ export default function SalesScreen() {
             </View>
 
             <ScrollView style={styles.productList}>
-              {filteredCustomers.map((customer) => (
+              {filteredCustomers.map((customer: any) => (
                 <TouchableOpacity
                   key={customer.id}
                   style={styles.productItem}

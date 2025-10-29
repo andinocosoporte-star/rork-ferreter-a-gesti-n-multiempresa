@@ -11,7 +11,7 @@ export default function SaleDetailScreen() {
   const branchId = "branch_1";
 
   const salesQuery = trpc.sales.getSales.useQuery({ companyId, branchId });
-  const sale = salesQuery.data?.find((s) => s.id === saleId);
+  const sale = salesQuery.data?.find((s: any) => s.id === saleId);
 
   if (!sale) {
     return (
@@ -113,7 +113,7 @@ export default function SaleDetailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Productos</Text>
-          {sale.items.map((item, index) => (
+          {sale.items.map((item: any, index: number) => (
             <View key={index} style={styles.itemRow}>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.productName}</Text>

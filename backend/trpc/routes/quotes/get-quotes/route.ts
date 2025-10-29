@@ -27,7 +27,7 @@ export default publicProcedure
       throw new Error("Error al obtener cotizaciones");
     }
     
-    return (quotes || []).map(q => ({
+    return (quotes || []).map((q: any) => ({
       id: q.id,
       quoteNumber: q.quote_number,
       date: new Date(q.date),

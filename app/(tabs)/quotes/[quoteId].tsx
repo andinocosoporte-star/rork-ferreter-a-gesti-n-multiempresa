@@ -11,7 +11,7 @@ export default function QuoteDetailScreen() {
   const branchId = "branch_1";
 
   const quotesQuery = trpc.quotes.getQuotes.useQuery({ companyId, branchId });
-  const quote = quotesQuery.data?.find((q) => q.id === quoteId);
+  const quote = quotesQuery.data?.find((q: any) => q.id === quoteId);
 
   if (!quote) {
     return (
@@ -127,7 +127,7 @@ export default function QuoteDetailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Productos</Text>
-          {quote.items.map((item, index) => (
+          {quote.items.map((item: any, index: number) => (
             <View key={index} style={styles.itemRow}>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.productName}</Text>

@@ -35,11 +35,11 @@ export const getCustomerDetailsProcedure = publicProcedure
     const available = customer.credit_limit - currentDebt;
 
     const activeCredits = transactions?.filter(
-      (t) => t.type === "sale" && t.balance > 0
+      (t: { type: string; balance: number }) => t.type === "sale" && t.balance > 0
     ).length || 0;
 
     const paidCredits = transactions?.filter(
-      (t) => t.type === "sale" && t.balance === 0
+      (t: { type: string; balance: number }) => t.type === "sale" && t.balance === 0
     ).length || 0;
 
     const overdueCredits = 0;
@@ -62,7 +62,7 @@ export const getCustomerDetailsProcedure = publicProcedure
       },
       currentDebt,
       available,
-      transactions: (transactions || []).map(t => ({
+      transactions: (transactions || []).map((t: any) => ({
         id: t.id,
         customerId: t.customer_id,
         type: t.type,

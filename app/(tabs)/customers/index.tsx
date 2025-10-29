@@ -24,8 +24,8 @@ export default function CustomersScreen() {
 
   const stats = useMemo(() => {
     const totalCustomers = customers.length;
-    const withCredit = customers.filter((c) => c.currentDebt > 0).length;
-    const totalDebt = customers.reduce((sum, c) => sum + c.currentDebt, 0);
+    const withCredit = customers.filter((c: { currentDebt: number }) => c.currentDebt > 0).length;
+    const totalDebt = customers.reduce((sum: number, c: { currentDebt: number }) => sum + c.currentDebt, 0);
 
     return { totalCustomers, withCredit, totalDebt };
   }, [customers]);
@@ -78,7 +78,7 @@ export default function CustomersScreen() {
             <Text style={styles.emptySubtext}>Agrega tu primer cliente para comenzar</Text>
           </View>
         ) : (
-          customers.map((customer) => (
+          customers.map((customer: any) => (
             <TouchableOpacity
               key={customer.id}
               style={styles.customerCard}

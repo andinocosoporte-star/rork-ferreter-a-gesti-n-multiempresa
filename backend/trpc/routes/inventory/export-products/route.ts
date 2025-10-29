@@ -28,7 +28,7 @@ export default publicProcedure
 
     const csvHeader =
       "Código,Nombre,Descripción,Descripción Detallada,Categoría,Unidad de Medida,Stock,Stock Mínimo,Costo Promedio,Precio Sugerido";
-    const csvRows = (products || []).map((p) =>
+    const csvRows = (products || []).map((p: any) =>
       [
         p.code,
         p.name,

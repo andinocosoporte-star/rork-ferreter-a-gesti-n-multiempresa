@@ -46,7 +46,7 @@ export default function NewCustomerScreen() {
         },
       ]);
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       Alert.alert("Error", error.message);
     },
   });
